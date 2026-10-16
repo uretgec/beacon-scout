@@ -23,10 +23,10 @@ interface BeaconRecord {
 }
 interface ListPayload {
   scanning: boolean; items: BeaconRecord[]; phase?: string;
-  // Backend fields: total = records currently held in the store,
-  // matches = records passing the current filter,
-  // seen = unique devices captured since launch (or last Clear).
-  total?: number; matches?: number; seen?: number;
+  // Backend fields — single source of truth:
+  // total   = unique devices currently held in the store (since launch/Clear)
+  // matches = records passing the current active filter
+  total?: number; matches?: number;
 }
 
 /* ---------- DOM helpers ---------- */
@@ -247,14 +247,16 @@ function detailCells(b: BeaconRecord): string {
        + adStructuresTable(b.parsed);
 }
 
-function render(items: BeaconRecord[], scanning: boolean, total: number) {
+function render(items: BeaconRecord[], scanning: boolean, matching?: number) {
   lastItems = items;
-  // "shown"   = rows currently visible after filters
-  // "seen"    = unique devices captured by the scanner since launch/Clear
-  // "matching"= devices passing the active filter (backend-computed)
-  lastMatchTotal = total;
-  const matching = total === items.length ? "" : ` · ${total} matching`;
-  $("countInfo").textContent = `${items.length} shown${matching} / ${parseSeen()} seen`;
+  // "shown"    = rows currently visible after filters
+  // "matching" = devices passing the active filter (optional arg)
+  // "total"    = unique devices held in the store — ALWAYS read live from the
+  //              backend via GetTotalCount(), never from a stale local copy.
+  if (typeof matching === "number") lastMatchTotal = matching;
+  const matchPart = typeof matching === "number" && matching !== items.length
+    ? ` · ${matching} matching` : "";
+  void updateTotalCounter(`${items.length} shown${matchPart}`);
   // Keep the local scan state in sync with the backend's authoritative flag.
   if (scanning !== scanningNow) setScanUI(scanning);
 
@@ -281,6 +283,16 @@ function render(items: BeaconRecord[], scanning: boolean, total: number) {
   }).join("");
 }
 
+// The "total" counter is fetched live from the backend on every render — it
+// never depends on event payloads arriving (which only happen while scanning).
+async function updateTotalCounter(prefix: string) {
+  try {
+    const total = (await ScanService.GetTotalCount()) as unknown as number;
+    if (typeof total === "number") lastSeenTotal = total;
+  } catch { /* keep last known value */ }
+  $("countInfo").textContent = `${prefix} / ${lastSeenTotal} total`;
+}
+
 /* ---------- Events from Go ---------- */
 Events.On("beacons:list", (ev: any) => {
   const d: ListPayload | undefined = ev?.data;
@@ -291,8 +303,9 @@ Events.On("beacons:list", (ev: any) => {
   // has not resolved yet.
   if (d.phase && d.phase !== "enabling" && enablingSince !== null) setEnablingUI(false);
   if (enablingSince === null && !!d.scanning !== scanningNow) setScanUI(!!d.scanning);
-  if (typeof d.seen === "number") lastSeenTotal = d.seen;
-  render(d.items ?? [], !!d.scanning, d.matches ?? d.total ?? 0);
+  // Single authoritative counter from the backend: payload.total.
+  if (typeof d.total === "number") lastSeenTotal = d.total;
+  render(d.items ?? [], !!d.scanning, d.matches);
 });
 
 // Backend pushes human-readable errors here (adapter failures, timeouts…)
@@ -387,9 +400,8 @@ async function handleCopy(btn: HTMLButtonElement) {
     showError(`Clipboard error: ${e}`);
   }
 }
-let lastSeenTotal = 0;      // authoritative "unique devices seen" from the backend payload
+let lastSeenTotal = 0;      // authoritative "unique devices in store" from the backend payload (payload.total)
 let lastMatchTotal = 0;     // backend-reported match count (kept for local re-renders)
-function parseSeen(): number { return lastSeenTotal; }
 function parseTotal(): number { return lastMatchTotal; }
 
 /* ---------- Filters sidebar ---------- */
@@ -569,7 +581,9 @@ function updateRefreshHint() {
 async function refreshOnce() {
   try {
     const items = (await ScanService.GetResults()) as unknown as BeaconRecord[];
-    // "seen" total comes from the live beacons:list pushes; keep last known.
+    // "matching" is the count of records passing the active filter — exactly
+    // what GetResults returned. The store-wide "total" is fetched live inside
+    // render() via GetTotalCount().
     render(items, scanningNow, items.length);
   } catch (e) {
     console.error("[ui] auto-refresh failed:", e);
@@ -742,7 +756,6 @@ $("clear").addEventListener("click", async () => {
     lastItems = [];
     lastSeenTotal = 0; lastMatchTotal = 0;
     render([], scanningNow, 0);
-    $("countInfo").textContent = "0 shown / 0 seen";
     flashButtonFeedback(btn, "Cleared");
   } catch (e) {
     console.error("[ui] ClearResults failed:", e);

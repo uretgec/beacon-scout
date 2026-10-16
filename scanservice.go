@@ -20,22 +20,21 @@ type ScanService struct {
 	app   *application.App
 	store *BeaconStore
 
-	mu             sync.Mutex
-	scanning       bool
-	enabling       int32        // 1 while adapter.Enable() is in flight — drives the "scan:state" progress events
-	enableDone     atomic.Int32 // 1 once Enable() has returned (success or error) — stops the enabling watchdog
-	adapterOn      bool
-	stopScan       func() error
-	lastEmit       time.Time
-	filter         FilterOptions
-	sortBy         string
-	sortDir        string
-	interval       time.Duration // refresh period for the auto-push ticker (default 1s)
-	ticker         *time.Ticker
-	pushStop       chan struct{} // stops the current live-push loop (guarded by mu)
-	dataSeq        atomic.Uint64 // bumped on every ingested advertisement
-	emittedSeq     uint64        // dataSeq value at last emit (guarded by mu)
-	lastMatchCount int           // match count of the last emitted snapshot (guarded by mu)
+	mu         sync.Mutex
+	scanning   bool
+	enabling   int32        // 1 while adapter.Enable() is in flight — drives the "scan:state" progress events
+	enableDone atomic.Int32 // 1 once Enable() has returned (success or error) — stops the enabling watchdog
+	adapterOn  bool
+	stopScan   func() error
+	lastEmit   time.Time
+	filter     FilterOptions
+	sortBy     string
+	sortDir    string
+	interval   time.Duration // refresh period for the auto-push ticker (default 1s)
+	ticker     *time.Ticker
+	pushStop   chan struct{} // stops the current live-push loop (guarded by mu)
+	dataSeq    atomic.Uint64 // bumped on every ingested advertisement
+	emittedSeq uint64        // dataSeq value at last emit (guarded by mu)
 }
 
 func NewScanService(store *BeaconStore) *ScanService {
@@ -475,14 +474,12 @@ func (s *ScanService) GetResults() []BeaconRecord {
 	return s.store.snapshotFilteredSorted(f, sortBy, dir)
 }
 
-// MatchCount returns how many stored devices pass the ACTIVE filter right now.
-// The frontend uses it after Clear so the header can show "0 shown / N seen"
-// instead of a stale match count from the last emitted snapshot.
-func (s *ScanService) MatchCount() int {
-	s.mu.Lock()
-	f := s.filter
-	s.mu.Unlock()
-	return len(s.store.snapshot(f))
+// GetTotalCount is the single authoritative source for the header's "total"
+// counter: unique devices currently held in the store (since launch/Clear).
+// The frontend polls it on every render, so it stays correct even when no
+// beacons:list events are flowing (refresh OFF, scan stopped…).
+func (s *ScanService) GetTotalCount() int {
+	return s.store.Count()
 }
 
 // ClearResults empties the stored device list and immediately pushes an empty
@@ -567,7 +564,6 @@ func (s *ScanService) emitNow() {
 
 	s.mu.Lock()
 	s.emittedSeq = s.dataSeq.Load()
-	s.lastMatchCount = len(list)
 	s.mu.Unlock()
 
 	// EventManager.Emit returns bool (true = delivered), not an error.
@@ -575,7 +571,9 @@ func (s *ScanService) emitNow() {
 		"scanning": scanning,
 		// phase lets the frontend self-heal a stuck "Enabling adapter…" button:
 		// any list push from the backend carries the authoritative scan state.
-		"phase":   scanPhase(scanning, atomic.LoadInt32(&s.enabling) == 1),
+		"phase": scanPhase(scanning, atomic.LoadInt32(&s.enabling) == 1),
+		// total = unique devices currently held in the store (since launch or
+		// last Clear) — the single authoritative counter shown in the header.
 		"total":   s.store.Count(),
 		"matches": len(list), // devices passing the ACTIVE filter right now
 		"items":   list,

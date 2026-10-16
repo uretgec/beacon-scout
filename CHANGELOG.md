@@ -4,6 +4,10 @@ All notable changes to Beacon Scout. Short SHA = commit id in this repository (`
 
 ## 2026-10-16
 
+- `b5084c2` — fix: header "total" counter was stuck at 0 because it only updated when `beacons:list` events flowed (i.e. while scanning with refresh pushing). Added backend `ScanService.GetTotalCount()` (= store.Count()) as the single live source; frontend now fetches it on **every render** (`updateTotalCounter()`), so total is correct even with refresh OFF, scan stopped, or after Clear. Removed stale `parseTotal`/fallback paths.
+- `e37698e` — fix: remove redundant "seen" counter entirely. Backend payload now carries a single authoritative `total` (= store.Count(), unique devices since launch/Clear) plus `matches`; frontend header shows `N shown · M matching / T total`. Fixes both the always-zero and duplicate-counter confusion.
+- `1ad962c` — fix: emit store count in beacons:list payload (header showed "0 seen" because the field was missing)
+- `2d518fc` — revert: restore working tree to `d233bb8` (darwinbridge + adfields files back, per user request)
 - `e494f66` — fix: rebuild_test.go used non-existent `bluetooth.NewUUID16` → correct v0.16.0 API is `New16BitUUID`; gofmt test files; stray `beacon-scout.exe` removed from disk again (git-tracked exe count = 0)
 - `0dfeeaa` — feat(raw): "Full Advertisement" hex is now a complete Core Spec AD-structure stream. On macOS (CoreBluetooth hides on-air bytes) the store reconstructs ADV_IND+Scan Response merged TLV including **Flags (0x01), Shortened (0x08)/Complete (0x09) Local Name, Appearance (0x19), Tx Power Level (0x0A)**, UUID lists, Manufacturer & Service Data; new `rawRebuilt` flag + "Source" row in detail table tells captured-verbatim vs reconstructed. New round-trip test `TestRebuildRawADFullAdvertisement`. ASCII column stays removed.
 - `41e5fd1` — fix: placeholder FilterOptions completed (deviceType, rssiTrend, rawContains, serviceUuidExact, namePrefix/Suffix); delete stray beacon-scout.exe
