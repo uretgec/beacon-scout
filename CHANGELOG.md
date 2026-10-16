@@ -2,6 +2,10 @@
 
 All notable changes to Beacon Scout. Short SHA = commit id in this repository (`git show <sha>`).
 
+## 2026-10-17
+
+- ``55150af`` — chore: repository identity updated to **github.com/uretgec/beacon-scout** (was the `github.com/example` placeholder). Module path in `go.mod`, frontend binding imports + committed placeholder bindings directory (`frontend/bindings/github.com/uretgec/beacon-scout/`), `.gitignore` allow-rules, macOS bundle id `com.uretgec.beacon-scout` (`build/darwin/Info*.plist`, TCC reset hint in `scanservice.go` error text and `INSTALL.md`), iOS bundle ids, Windows manifest / MSIX identity, `build/config.yml` product info (Uretgec / Beacon Scout), and README repo link all aligned. Note: after pulling this change run `wails3 generate bindings` once so generated bindings land in the new directory.
+
 ## 2026-10-16
 
 - `b5084c2` — fix: header "total" counter was stuck at 0 because it only updated when `beacons:list` events flowed (i.e. while scanning with refresh pushing). Added backend `ScanService.GetTotalCount()` (= store.Count()) as the single live source; frontend now fetches it on **every render** (`updateTotalCounter()`), so total is correct even with refresh OFF, scan stopped, or after Clear. Removed stale `parseTotal`/fallback paths.

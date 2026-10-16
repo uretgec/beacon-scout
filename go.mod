@@ -1,4 +1,4 @@
-module github.com/example/beacon-scout
+module github.com/uretgec/beacon-scout
 
 go 1.25.0
 

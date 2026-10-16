@@ -17,20 +17,19 @@ wails3 generate bindings
 Run this once after cloning (and again whenever you change Go service methods).
 `wails3 dev` does this automatically.
 
-
 ## 1. Prerequisites
 
 | Requirement | Version | Notes |
 |---|---|---|
-| Go | 1.25 or newer | https://go.dev/dl/ |
-| Node.js + npm | 18 or newer | https://nodejs.org/ |
+| Go | 1.25 or newer | <https://go.dev/dl/> |
+| Node.js + npm | 18 or newer | <https://nodejs.org/> |
 | Wails CLI v3 | `v3.0.0-beta.29` or newer | Installed with Go (see below) |
-| Task (optional) | any recent version | https://taskfile.dev — used by the project's `Taskfile.yml` |
+| Task (optional) | any recent version | <https://taskfile.dev> — used by the project's `Taskfile.yml` |
 | Hardware | BLE 4.0+ adapter | Built-in laptop Bluetooth is fine; VMs usually do **not** have Bluetooth access |
 
 ### Install the toolchain
 
-**Go**
+**Go*
 
 ```bash
 # macOS (Homebrew)
@@ -40,7 +39,7 @@ brew install go
 winget install GoLang.Go
 ```
 
-**Wails v3 CLI**
+**Wails v3 CLI*
 
 ```bash
 go install github.com/wailsapp/wails/v3/cmd/wails3@latest
@@ -52,7 +51,7 @@ Make sure `$GOPATH/bin` (macOS/Linux) or `%GOPATH%\bin` (Windows) is on your `PA
 wails3 doctor
 ```
 
-**Node.js**
+**Node.js*
 
 ```bash
 # macOS
@@ -128,15 +127,19 @@ task package          # NSIS installer on Windows, .app/DMG-style bundle on macO
 ### macOS
 
 1. **Bluetooth permission** — the app declares `NSBluetoothAlwaysUsageDescription` in its `Info.plist`, so macOS shows a prompt: *"Beacon Scout would like to use Bluetooth"*. Click **Allow**. If you see an error like **"timeout enabling CentralManager"**, the permission was never granted (the prompt may have been auto-denied). Fix it with:
+
    ```bash
-   tccutil reset All com.example.beaconscout
+   tccutil reset All com.uretgec.beacon-scout
    ```
+
    then relaunch the app and accept the prompt. You can also toggle it under *System Settings → Privacy & Security → Bluetooth*.
    > **Note for `wails3 dev`:** when running from a terminal, macOS attributes the Bluetooth permission to the **terminal app** (Terminal/iTerm). Grant permission to your terminal, or run the built `.app` bundle instead.
 2. **Gatekeeper** — if you downloaded a built `.app` from another machine and macOS blocks it, right-click the app → **Open**, or run:
+
    ```bash
    xattr -dr com.apple.quarantine beacon-scout.app
    ```
+
 3. No admin/root privileges are required for scanning.
 
 ### Windows

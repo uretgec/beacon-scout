@@ -1,4 +1,6 @@
-# Welcome to Your New Wails3 Project!
+[![Repository](https://github.com/uretgec/beacon-scout)](https://github.com/uretgec/beacon-scout)
+
+# Welcome to Your New Wails3 Project
 
 Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
 
@@ -8,7 +10,7 @@ Congratulations on generating your Wails3 application! This README will guide yo
 
 2. To run your application in development mode, use the following command:
 
-   ```
+   ```txt
    wails3 dev
    ```
 
@@ -16,7 +18,7 @@ Congratulations on generating your Wails3 application! This README will guide yo
 
 3. To build your application for production, use:
 
-   ```
+   ```txt
    wails3 build
    ```
 
@@ -30,7 +32,7 @@ Now that you have your project set up, it's time to explore the features that Wa
 
 2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
 
-   ```
+   ```txt
    go run .
    ```
 

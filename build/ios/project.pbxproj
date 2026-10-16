@@ -180,7 +180,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.example.beaconscout";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.uretgec.beacon-scout";
 				PRODUCT_NAME = "My Product";
 				CODE_SIGNING_ALLOWED = NO;
 				SDKROOT = iphoneos;
@@ -196,7 +196,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.example.beaconscout";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.uretgec.beacon-scout";
 				PRODUCT_NAME = "My Product";
 				CODE_SIGNING_ALLOWED = NO;
 				SDKROOT = iphoneos;

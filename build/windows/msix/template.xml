@@ -10,13 +10,13 @@
     <Installer
         Path="beacon_scout"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\Uretgec\My Product">
     </Installer>
     <PackageInformation
         PackageName="My Product"
         PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PublisherName="CN=Uretgec"
+        PublisherDisplayName="Uretgec"
         Version="0.1.0.0"
         PackageDescription="A Beacon_Scout application">
         <Capabilities>
@@ -25,7 +25,7 @@
         </Capabilities>
         <Applications>
             <Application
-                Id="com.example.beaconscout"
+                Id="com.uretgec.beacon-scout"
                 Description="A Beacon_Scout application"
                 DisplayName="My Product"
                 ExecutableName="beacon_scout"
@@ -42,7 +42,7 @@
         <Properties>
             <Framework>false</Framework>
             <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
+            <PublisherDisplayName>Uretgec</PublisherDisplayName>
             <Description>A Beacon_Scout application</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>

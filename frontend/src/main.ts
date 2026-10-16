@@ -1,8 +1,8 @@
 import { Events } from "@wailsio/runtime";
-// Binding path mirrors the Go module name: github.com/example/beacon-scout.
+// Binding path mirrors the Go module name: github.com/uretgec/beacon-scout.
 // (Wails writes generated bindings to frontend/bindings/<module-path>/.)
-import { ScanService } from "../bindings/github.com/example/beacon-scout";
-import type { FilterOptions } from "../bindings/github.com/example/beacon-scout";
+import { ScanService } from "../bindings/github.com/uretgec/beacon-scout";
+import type { FilterOptions } from "../bindings/github.com/uretgec/beacon-scout";
 
 /* ---------- Types (mirror of the Go structs) ---------- */
 interface ADStructure { type: number; typeName: string; hex: string; ascii?: string; decoded: string; }

@@ -19,9 +19,9 @@ node_modules/
 /frontend/bindings/*
 !/frontend/bindings/github.com/
 /frontend/bindings/github.com/*
-!/frontend/bindings/github.com/example/
-/frontend/bindings/github.com/example/*
-!/frontend/bindings/github.com/example/beacon-scout/
+!/frontend/bindings/github.com/uretgec/
+/frontend/bindings/github.com/uretgec/*
+!/frontend/bindings/github.com/uretgec/beacon-scout/
 /frontend/bindings/github.com/wailsapp/
 
 # Mobile generated (per-machine; overlays hold absolute paths)
@@ -41,4 +41,7 @@ Thumbs.db
 **/*.exe
 **/*.dll
 build/windows/installer/wails_tools.nsh.bak
+*.exe
+
+# Never ever: Windows binaries anywhere in the tree (enforced by pre-commit hook too)
 *.exe

@@ -8,14 +8,14 @@
   IgnorableNamespaces="uap3">
   
   <Identity 
-    Name="com.example.beaconscout"
-    Publisher="CN=My Company"
+    Name="com.uretgec.beacon-scout"
+    Publisher="CN=Uretgec"
     Version="0.1.0.0" 
     ProcessorArchitecture="x64" />
   
   <Properties>
     <DisplayName>My Product</DisplayName>
-    <PublisherDisplayName>My Company</PublisherDisplayName>
+    <PublisherDisplayName>Uretgec</PublisherDisplayName>
     <Description>A Beacon_Scout application</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -29,7 +29,7 @@
   </Resources>
   
   <Applications>
-    <Application Id="com.example.beaconscout" Executable="beacon_scout" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="com.uretgec.beacon-scout" Executable="beacon_scout" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="My Product"
         Description="A Beacon_Scout application"

@@ -285,7 +285,7 @@ func (s *ScanService) EnableAdapter() error {
 			"  2. In dev mode (`wails3 dev`) the permission belongs to your TERMINAL app\n" +
 			"     (Terminal / iTerm / VS Code), not the beacon-scout binary.\n" +
 			"  3. Reset stale grants, then fully quit and relaunch:\n" +
-			"       tccutil reset Bluetooth com.example.beaconscout\n" +
+			"       tccutil reset Bluetooth com.uretgec.beacon-scout\n" +
 			"          If that reports \"No such bundle identifier\", find the real id with:  tccutil list Bluetooth")
 		log.Printf("[scan] adapter.Enable() TIMED OUT after %s", time.Since(start).Round(time.Second))
 		s.emitError(err)
