@@ -2,7 +2,19 @@
 
 All notable changes to Beacon Scout. Short SHA = commit id in this repository (`git show <sha>`).
 
+## 2026-10-17 (later)
+
+- ``8e3569f`` � fix: unused-function warnings in `numbersdb.go` resolved by wiring the helpers into real call sites instead of deleting them: new bound method `ServiceUuidNames(uuids)` (detail table's "Service UUIDs" row now hydrates to SIG names, e.g. `0x180F Battery Service`, via `.sig-uuids` cells in `main.ts`), new bound method `CharacteristicNames()` (full GATT characteristic catalogue exposed to the frontend), and `hexToUint16`/`serviceNamesFor` covered by new `numbersdb_test.go`. Truly dead single-UUID lookups `serviceName()`/`characteristicName()` removed (superseded by the batch methods).
+- ``8271a59`` � chore: remove stray `beacon-scout.exe` again; pre-commit binary guard hook installed.
+- ``708345a``/``047f04a`` — fix(ui): GAP Appearance picker populated from the embedded SIG database (`ScanService.Appearances()`); `appearanceSelect` ReferenceError resolved.
+- SIG Assigned Numbers integration (vendored, `//go:embed`): `numbersdb.go` + `data/numbers/` (company_ids, gap_appearance, service_uuids, characteristic_uuids + Apache-2.0 LICENSE from NordicSemiconductor/bluetooth-numbers-database). New service methods `Companies()`, `Appearances()`, `CompanyName(code)`, `ServiceNames()`; searchable Manufacturer & Appearance pickers in the filters sidebar; company names in detail view now resolve against the full SIG table (~1700 companies).
+- ``b5084c2`` — fix: header "total" counter live-fetch via `GetTotalCount()` on every render.
+- Housekeeping: **deleted `conversation.md`** (planning notes no longer needed); **.gitignore rewritten** — deduplicated the three accumulated `*.exe` rules and leftover scratch entries into one clean sectioned file (binaries, frontend artifacts, generated bindings w/ committed uretgec stubs, taskfile overrides, mobile per-machine files, OS/editor noise); **README.md rewritten** as a concise user-facing description of Beacon Scout (features, quick start, project layout, credits).
+
 ## 2026-10-17
+
+- ``e1d81d5`` — chore: repository identity -> **github.com/uretgec/beacon-scout** (go.mod, binding dir + imports, bundle ids, gitignore, README). Verified on-disk at HEAD `e1d81d5`: zero `example/beacon-scout` references remain; exe count = 0.
+- docs: added `conversation.md` — tiny-go/bluetooth capability audit + bluetooth-numbers-database (SIG assigned numbers) analysis and `//go:embed` plan.
 
 - ``55150af`` — chore: repository identity updated to **github.com/uretgec/beacon-scout** (was the `github.com/example` placeholder). Module path in `go.mod`, frontend binding imports + committed placeholder bindings directory (`frontend/bindings/github.com/uretgec/beacon-scout/`), `.gitignore` allow-rules, macOS bundle id `com.uretgec.beacon-scout` (`build/darwin/Info*.plist`, TCC reset hint in `scanservice.go` error text and `INSTALL.md`), iOS bundle ids, Windows manifest / MSIX identity, `build/config.yml` product info (Uretgec / Beacon Scout), and README repo link all aligned. Note: after pulling this change run `wails3 generate bindings` once so generated bindings land in the new directory.
 

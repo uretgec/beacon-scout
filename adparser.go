@@ -52,34 +52,34 @@ var adTypeNames = map[uint8]string{
 	0x21: "Service Data (128-bit UUID)",
 	0x22: "URI (deprecated)",
 	0x23: "3D Information Data",
-	0x24: "Connection Set ID (unofficial)",
-	0x25: "Synced Scan Response Data (unofficial)",
-	0x26: "PubBcast Address (unofficial)",
-	0x27: "Advertising Interval Timeout (unofficial)",
-	0x28: "Num Remaining Public Broadcasts (unofficial)",
-	0x29: "Extended Alert Notifier Data (unofficial)",
-	0x2A: "Reserved for future use",
-	0x2B: "Positioning Parameter (unofficial)",
-	0x2C: "Session Info (unofficial)",
-	0x2D: "Attribute Protocol Data (unofficial)",
-	0x2E: "Ephemeral ID (unofficial)",
-	0x2F: "Public Broadcast Announcement (unofficial)",
-	0x30: "Basic Announcements (unofficial)",
-	0x31: "Next Availability (unofficial)",
-	0x32: "Status Request (unofficial)",
-	0x33: "Status (unofficial)",
-	0x34: "Network ID (unofficial)",
-	0x35: "Add OTA Monitoring Data (unofficial)",
-	0x36: "Radio Node ID (unofficial)",
-	0x37: "Asset Tagging ID (unofficial)",
-	0x38: "UUID (unofficial)",
-	0x39: "UWB (unofficial)",
-	0x3A: "Manufacturer Specific Data (alt)",
-	0x3B: "Signet Structure (unofficial)",
-	0x3C: "Sensorhub Config (unofficial)",
-	0x3D: "Apple Continuity (unofficial)",
-	0x3E: "Microsoft SmartTag (unofficial)",
-	0x3F: "Google Fast Pair (unofficial)",
+	0x24: "Appearance",
+	0x25: "Advertising Interval Timeout (unofficial)",
+	0x26: "LE Bluetooth Device Address (complete)",
+	0x27: "LE Role (unofficial)",
+	0x28: "Extended Inquiry Response (unofficial)",
+	0x29: "Periodic Advertising Responses",
+	0x2A: "Adaptive Frequency Hopping Initiation Data",
+	0x2B: "Periodic Advertising Sync Parameters",
+	0x2C: "Broadcast Name",
+	0x2D: "Encrypted Advertising Data",
+	0x2E: "Periodic Advertising Response Timing Information",
+	0x2F: "Public Broadcast Anchor (unofficial)",
+	0x30: "Basic PA (unofficial)",
+	0x31: "Node ID (unofficial)",
+	0x32: "Advertising Direction (unofficial)",
+	0x33: "Configuration Channel (unofficial)",
+	0x34: "POS Calibration Notification (unofficial)",
+	0x35: "ODM Data (unofficial)",
+	0x36: "UWB Radio ID (unofficial)",
+	0x37: "Resolvable Set Identifier (unofficial)",
+	0x38: "Multiple Advertisement Formats",
+	0x39: "Multiple Schedules",
+	0x3A: "Extended Appearance",
+	0x3B: "Local Name (unofficial)",
+	0x3C: "Periodic Advertising Interface Timing",
+	0x3D: "Brand Name (unofficial)",
+	0x3E: "Broadcast Scan Request (unofficial)",
+	0x3F: "Continuity (unofficial)",
 	0xFF: "Manufacturer Specific Data",
 }
 
@@ -210,9 +210,10 @@ func parseAdvertisement(raw []byte) ParsedAdv {
 			if len(data) >= 1 {
 				ad.Decoded = fmt.Sprintf("3D data (type 0x%02X)", data[0])
 			}
-		case 0x24: // Connection Set ID
-			if len(data) >= 1 {
-				ad.Decoded = fmt.Sprintf("CID=%d", data[0])
+		case 0x24: // Appearance — 16-bit little-endian, decoded via embedded GAP catalogue
+			if len(data) >= 2 {
+				v := uint16(data[0]) | uint16(data[1])<<8
+				ad.Decoded = fmt.Sprintf("%s (0x%04X)", decodeAppearance(v), v)
 			}
 		case 0x27: // Advertising Interval Timeout (16-bit, unit 10 ms)
 			if len(data) >= 2 {
@@ -435,7 +436,10 @@ func decodeManufacturerData(d []byte, p *ParsedAdv) string {
 	}
 	cid := uint16(d[0]) | uint16(d[1])<<8 // little-endian company id
 	body := d[2:]
-	name := companyNames[int(cid)]
+	name := companyName(cid) // full Bluetooth SIG table (embedded numbers DB)
+	if name == "" {
+		name = companyNames[int(cid)] // small hand-written fallback
+	}
 	if name == "" {
 		name = fmt.Sprintf("company 0x%04X", cid)
 	}

@@ -183,9 +183,9 @@ function detailCells(b: BeaconRecord): string {
   identity.push(["Flags", flags ? esc(flags) : '<span class="muted">No Flags AD (0x01) in payload</span>']);
   // Local Name (full or shortened, per AD types 0x09 / 0x08).
   identity.push(["Local Name", b.name ? esc(b.name) : '<span class="muted">(unnamed)</span>']);
-  if (b.serviceUuids?.length) identity.push(["Service UUIDs", `<span class="hex">${esc(b.serviceUuids.join(", "))}</span>`]);
+  if (b.serviceUuids?.length) identity.push(["Service UUIDs", `<span class="hex sig-uuids">${esc(b.serviceUuids.join(", "))}</span>`]);
   if (b.companyIds?.length) {
-    identity.push(["Company", b.companyIds.map(c => `0x${c.toString(16).padStart(4, "0").toUpperCase()} — ${esc(companyName(c))}`).join(", ")]);
+    identity.push([`Company`, `<span class="sig-names">${b.companyIds.map(c => `0x${c.toString(16).padStart(4, "0").toUpperCase()} — ${esc(companyName(c))}`).join("<br>")}</span>`]);
   }
   if (b.advTypes?.length > 1) identity.push(["All AD types present", esc(b.advTypes.join(", "))]);
   if (b.txPower !== undefined && b.txPower !== null) identity.push(["Tx Power", `${b.txPower} dBm`]);
@@ -281,6 +281,8 @@ function render(items: BeaconRecord[], scanning: boolean, matching?: number) {
       ? `<tr class="detail" data-json="${encodeURIComponent(JSON.stringify(b))}"><td colspan="8">${detailCells(b)}</td></tr>` : "";
     return main + det;
   }).join("");
+  // Replace short company labels with full Bluetooth SIG names (async, cached).
+  if (expanded) hydrateSigNames(tbody);
 }
 
 // The "total" counter is fetched live from the backend on every render — it
@@ -422,6 +424,72 @@ companySelect?.addEventListener("change", () => {
   if (!manual) companyInput.value = "";
 });
 
+// ---- Bluetooth SIG numbers DB (embedded bluetooth-numbers-database) ----
+// Populated by initNumbersDB() after the service pickers are wired below.
+let allCompanies: { code: string; name: string }[] = [];
+function renderCompanyOptions(filterText: string): void {
+  if (!companySelect || !allCompanies.length) return;
+  const q = filterText.trim().toLowerCase();
+  const matches = q
+    ? allCompanies.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+    : allCompanies.slice(0, 60); // keep the DOM light when unfiltered
+  const shown = matches.slice(0, 200);
+  companySelect.innerHTML =
+    `<option value="">Any company</option>` +
+    shown.map(c => `<option value="${esc(c.code.replace(/^0x/i, "").toLowerCase())}">${esc(c.name)} (${esc(c.code)})</option>`).join("") +
+    `<option value="manual">Custom hex…</option>`;
+  if (matches.length > shown.length) {
+    console.log(`[ui] company picker truncated: ${shown.length}/${matches.length} for "${q}"`);
+  }
+}
+$("fCompanySearch")?.addEventListener("input", (ev) => {
+  renderCompanyOptions((ev.target as HTMLInputElement).value);
+});
+
+// Full SIG company name lookup for the detail table (async, cached).
+const companyNameCache = new Map<number, string>();
+async function resolveCompanyName(cid: number): Promise<string> {
+  const hit = companyNameCache.get(cid);
+  if (hit !== undefined) return hit;
+  try {
+    const n = await ScanService.CompanyName(cid);
+    const val = typeof n === "string" && n ? n : `Unknown company`;
+    companyNameCache.set(cid, val);
+    return val;
+  } catch {
+    return COMPANY_NAMES[cid] ?? `Unknown company`;
+  }
+}
+
+// Upgrade "Company" cells in an open detail panel with full SIG names
+// (e.g. "Apple" -> "Apple, Inc."). Fire-and-forget; falls back silently.
+function hydrateSigNames(scope: HTMLElement): void {
+  scope.querySelectorAll<HTMLElement>(".sig-names").forEach(async (el) => {
+    if (el.dataset.hydrated) return;
+    el.dataset.hydrated = "1";
+    const lines = el.innerHTML.split("<br>");
+    const out: string[] = [];
+    for (const line of lines) {
+      const m = line.match(/0x([0-9A-Fa-f]{4})\s*—\s*(.*)/);
+      if (!m) { out.push(line); continue; }
+      const sig = await resolveCompanyName(parseInt(m[1], 16));
+      out.push(`0x${m[1].toUpperCase()} — ${esc(sig)}`);
+    }
+    el.innerHTML = out.join("<br>");
+  });
+  // Upgrade raw service-UUID lists to SIG names via the embedded database
+  // (e.g. "180f" -> "0x180F Battery Service"). Falls back to the raw list.
+  scope.querySelectorAll<HTMLElement>(".sig-uuids").forEach(async (el) => {
+    if (el.dataset.hydrated) return;
+    el.dataset.hydrated = "1";
+    const uuids = el.textContent!.split(",").map(s => s.trim()).filter(Boolean);
+    try {
+      const named = await ScanService.ServiceUuidNames(uuids);
+      if (named) el.innerHTML = esc(named);
+    } catch { /* bindings not regenerated yet — keep raw */ }
+  });
+}
+
 // Service-UUID dropdown ↔ custom input toggle
 const svcSelect = $select("fServiceUuidSelect");
 const svcInput = $input("fServiceUuid");
@@ -430,6 +498,66 @@ svcSelect?.addEventListener("change", () => {
   svcInput.style.display = manual ? "" : "none";
   if (!manual) svcInput.value = "";
 });
+
+// Load the embedded SIG tables into the pickers once the controls exist.
+(async () => {
+  try {
+    allCompanies = (await ScanService.Companies()) as unknown as { code: string; name: string }[];
+    if (Array.isArray(allCompanies) && allCompanies.length) renderCompanyOptions("");
+  } catch (e) {
+    console.warn("[ui] Companies() unavailable (bindings not regenerated?):", e);
+  }
+})();
+(async () => {
+  try {
+    const svcs = (await ScanService.ServiceNames()) as unknown as { code: string; name: string }[];
+    if (Array.isArray(svcs) && svcs.length && svcSelect) {
+      svcSelect.innerHTML =
+        `<option value="">Any / not filtered</option>` +
+        svcs.map(s => `<option value="${esc(s.code.replace(/^0x/i, "").toLowerCase())}">${esc(s.code)} — ${esc(s.name)}</option>`).join("") +
+        `<option value="manual">Custom…</option>`;
+    }
+  } catch (e) {
+    console.warn("[ui] ServiceNames() unavailable (bindings not regenerated?):", e);
+  }
+})();
+
+// ---- GAP Appearance picker (SIG database) ----
+const appearanceSelect = $select("fAppearanceSelect");
+let allAppearances: { value: number; name: string; category: string }[] = [];
+
+function renderAppearanceOptions(filterText: string): void {
+  if (!appearanceSelect || !allAppearances.length) return;
+  const q = filterText.trim().toLowerCase();
+  const matches = q
+    ? allAppearances.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        a.category.toLowerCase().includes(q) ||
+        `0x${a.value.toString(16)}`.includes(q))
+    : allAppearances.slice(0, 80); // keep the DOM light when unfiltered
+  const shown = matches.slice(0, 300);
+  appearanceSelect.innerHTML =
+    `<option value="">Any / not filtered</option>` +
+    shown.map(a =>
+      `<option value="${esc(a.value.toString(16))}">${esc(a.name)} — ${esc(a.category)} (0x${a.value.toString(16).toUpperCase()})</option>`
+    ).join("");
+  if (matches.length > shown.length) {
+    console.log(`[ui] appearance picker truncated: ${shown.length}/${matches.length} for "${q}"`);
+  }
+}
+$("fAppearanceSearch")?.addEventListener("input", (ev) => {
+  renderAppearanceOptions((ev.target as HTMLInputElement).value);
+});
+
+// Load the embedded SIG tables into the pickers once the controls exist.
+(async () => {
+  try {
+    allAppearances = (await ScanService.Appearances()) as unknown as { value: number; name: string; category: string }[];
+    if (Array.isArray(allAppearances) && allAppearances.length) renderAppearanceOptions("");
+  } catch (e) {
+    console.warn("[ui] Appearances() unavailable (bindings not regenerated?):", e);
+  }
+})();
 
 // Fill the multi-select of AD types from the curated Bluetooth SIG catalog.
 (async () => {
@@ -498,6 +626,9 @@ function currentFilter(): FilterOptions {
     connectable: ($select("fConnectable")?.value ?? ""),
     addressRandom: ($select("fAddressRandom")?.value ?? ""),
     rssiTrend: ($select("fRssiTrend")?.value ?? ""),
+    deviceType: ($select("fDeviceType")?.value ?? ""),
+    appearanceExact: str("fAppearanceExact").replace(/[^0-9a-fA-F]/g, ""),
+    appearanceCategory: appearanceSelect ? appearanceSelect.value : "",
     minTxPower: num("fMinTx", 0),
     maxTxPower: num("fMaxTx", 0),
     minHits: num("fMinHits", 0),

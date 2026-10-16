@@ -64,6 +64,11 @@ type BeaconRecord struct {
 	AdvSid           int  `json:"advSid,omitempty"`              // -1 or omitted = unknown
 	PeriodicInterval int  `json:"periodicAdvInterval,omitempty"` // in 1.25 ms units
 	DirectRSSI       int  `json:"directRssi,omitempty"`          // dBm, if the radio reported it
+
+	// GAP Appearance (AD type 0x24), decoded via the embedded SIG catalogue.
+	Appearance *uint16 `json:"appearance,omitempty"` // raw 16-bit value, nil when absent
+	// Human-readable appearance name + category, e.g. "Laptop (Computer)".
+	AppearanceName string `json:"appearanceName,omitempty"`
 }
 
 // FilterOptions describes advanced filtering criteria applied on the Go side.
@@ -135,6 +140,13 @@ type FilterOptions struct {
 
 	// RssiTrend: "" any | "up" last RSSI improved vs previous | "down" worsened.
 	RssiTrend string `json:"rssiTrend,omitempty"`
+
+	// AppearanceExact / AppearanceCategory: GAP Appearance filter backed by the
+	// embedded bluetooth-numbers-database (gap_appearance.json). Exact is a hex
+	// value ("0x0080"); Category matches the SIG category name case-insensitively
+	// ("phone", "keyboard", …).
+	AppearanceExact    string `json:"appearanceExact,omitempty"`
+	AppearanceCategory string `json:"appearanceCategory,omitempty"`
 }
 
 type beaconEntry struct {
@@ -196,7 +208,7 @@ func (s *BeaconStore) ingest(addr bluetooth.Address, rssi int16, payload bluetoo
 		// Bytes() is non-nil (Linux/Windows full on-air stream — or macOS with a
 		// platform that exposes raw bytes). Merge any AD structure the bridge
 		// captured but the stream lacks (Tx Power 0x0A, Flags 0x01, Shortened
-		// Name 0x08, Appearance 0x19) so Raw and the parse tables always
+		// Name 0x08, Appearance 0x24) so Raw and the parse tables always
 		// describe the same complete set.
 		if advTxPower != nil && findADFlag(raw, 0x0A) == nil {
 			raw = appendAD(raw, 0x0A, []byte{byte(*advTxPower)})
@@ -210,13 +222,17 @@ func (s *BeaconStore) ingest(addr bluetooth.Address, rssi int16, payload bluetoo
 			raw = appendAD(raw, 0x08, []byte(shortName))
 			rawRebuilt = true
 		}
-		if appearance != nil && findADFlag(raw, 0x19) == nil {
-			raw = appendAD(raw, 0x19, []byte{byte(*appearance), byte(*appearance >> 8)})
+		if appearance != nil && findADFlag(raw, 0x24) == nil {
+			raw = appendAD(raw, 0x24, []byte{byte(*appearance), byte(*appearance >> 8)})
 			rawRebuilt = true
 		}
 	}
 
 	txPower := parseTxPower(raw)
+	appearanceVal := parseAppearance(raw)
+	if appearanceVal == nil && appearance != nil {
+		appearanceVal = appearance // Darwin bridge captured it directly
+	}
 	// On macOS the raw on-air bytes are unavailable, so parseTxPower(raw) can
 	// only see a value if we reconstructed the 0x0A AD structure ourselves.
 	// The Darwin bridge captures CBAdvertisementDataTxPowerLevelKey directly
@@ -261,6 +277,10 @@ func (s *BeaconStore) ingest(addr bluetooth.Address, rssi int16, payload bluetoo
 	rec.EdInstance = dec.edInstance
 	rec.EdURL = dec.edURL
 	rec.GoogleBeaconID = dec.googleID
+	if appearanceVal != nil {
+		rec.Appearance = appearanceVal
+		rec.AppearanceName = decodeAppearance(*appearanceVal)
+	}
 	for _, u := range uuids {
 		rec.ServiceUUIDs = append(rec.ServiceUUIDs, u.String())
 	}
@@ -306,6 +326,10 @@ func (s *BeaconStore) ingest(addr bluetooth.Address, rssi int16, payload bluetoo
 	}
 	if txPower != nil {
 		r.TxPower = txPower
+	}
+	if appearanceVal != nil {
+		r.Appearance = appearanceVal
+		r.AppearanceName = decodeAppearance(*appearanceVal)
 	}
 	if deviceType != "" {
 		r.DeviceType = deviceType
@@ -669,6 +693,36 @@ func matches(r *BeaconRecord, f FilterOptions, now time.Time) bool {
 			return false
 		}
 	}
+	// GAP Appearance filters (embedded bluetooth-numbers-database).
+	// Exact: hex code like "0x0080" or "80" — matches the advertised value.
+	if f.AppearanceExact != "" {
+		needle := strings.ToLower(strings.TrimSpace(f.AppearanceExact))
+		needle = strings.TrimPrefix(needle, "0x")
+		needle = strings.ReplaceAll(needle, " ", "")
+		if needle != "" {
+			if r.Appearance == nil {
+				return false
+			}
+			want := fmt.Sprintf("%04x", *r.Appearance)
+			if len(needle) < 4 {
+				needle = strings.Repeat("0", 4-len(needle)) + needle
+			}
+			if want != needle {
+				return false
+			}
+		}
+	}
+	// Category: SIG category name substring, e.g. "phone" matches any phone
+	// subcategory (iPhone, Android…). Case-insensitive.
+	if f.AppearanceCategory != "" {
+		if r.Appearance == nil {
+			return false
+		}
+		cat := strings.ToLower(appearanceCategory(*r.Appearance))
+		if cat == "" || !strings.Contains(cat, strings.ToLower(strings.TrimSpace(f.AppearanceCategory))) {
+			return false
+		}
+	}
 	// "Only active" window. ActiveWindow <= 0 falls back to a sane 10 s
 	// instead of silently dropping every record (a zero-value filter must
 	// never mean "show nothing").
@@ -886,7 +940,24 @@ func parseTxPower(raw []byte) *int8 {
 	return nil
 }
 
-// ---------- raw AD reconstruction (macOS fallback) ----------
+// parseAppearance scans the raw AD stream for the GAP Appearance structure
+// (AD type 0x24, 16-bit little-endian per Core Spec). Returns nil when absent.
+func parseAppearance(raw []byte) *uint16 {
+	i := 0
+	for i+1 < len(raw) {
+		length := int(raw[i])
+		if length == 0 || i+1+length > len(raw) {
+			break
+		}
+		adType := raw[i+1]
+		if adType == 0x24 && length >= 3 {
+			v := uint16(raw[i+2]) | uint16(raw[i+3])<<8
+			return &v
+		}
+		i += 1 + length
+	}
+	return nil
+}
 
 // ---------- raw AD reconstruction (macOS fallback) ----------
 
@@ -974,7 +1045,7 @@ func rebuildRawAD(name string, uuids []bluetooth.UUID, mfg []bluetooth.Manufactu
 		}
 	}
 	if appearance != nil {
-		buf = appendAD(buf, 0x19, []byte{byte(*appearance), byte(*appearance >> 8)}) // little-endian
+		buf = appendAD(buf, 0x24, []byte{byte(*appearance), byte(*appearance >> 8)}) // Appearance, little-endian
 	}
 	if advTxPower != nil {
 		buf = appendAD(buf, 0x0A, []byte{byte(*advTxPower)}) // Tx Power Level

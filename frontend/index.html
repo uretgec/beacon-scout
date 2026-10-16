@@ -62,22 +62,9 @@
                 </div>
                 <div class="field">
                     <label for="fCompany">Company (Bluetooth SIG)</label>
-                    <select id="fCompanySelect">
+                    <input type="text" id="fCompanySearch" placeholder="search ~1700 companies, e.g. apple, samsung…" autocomplete="off"/>
+                    <select id="fCompanySelect" size="6">
                         <option value="">Any company</option>
-                        <option value="4c">Apple (0x004C) — iBeacon</option>
-                        <option value="e0">Google (0x00E0) — Eddystone / Fast Pair</option>
-                        <option value="0118">AltBeacon Consortium (0x0118)</option>
-                        <option value="0159">Estimote (0x0159)</option>
-                        <option value="05a7">Kontakt.io (0x05A7)</option>
-                        <option value="59">Nordic Semiconductor (0x0059)</option>
-                        <option value="06">Broadcom (0x0006)</option>
-                        <option value="0d">Texas Instruments (0x000D)</option>
-                        <option value="0a">CSR / Qualcomm (0x000A)</option>
-                        <option value="07">Samsung (0x0007)</option>
-                        <option value="8a">Huawei (0x008A)</option>
-                        <option value="d0">Xiaomi (0x00D0)</option>
-                        <option value="38f">Meta / Facebook (0x038F)</option>
-                        <option value="6">Microsoft (0x0006)</option>
                         <option value="manual">Custom hex…</option>
                     </select>
                     <input type="text" id="fCompany" placeholder="custom hex, e.g. 4c" style="display:none"/>
@@ -118,18 +105,9 @@
                     </div>
                     <div class="field">
                         <label for="fServiceUuid">Service UUID advertised</label>
-                        <select id="fServiceUuidSelect">
+                        <select id="fServiceUuidSelect" size="6">
                             <option value="">Any / not filtered</option>
-                            <option value="180F">0x180F — Battery Service</option>
-                            <option value="180A">0x180A — Device Information</option>
-                            <option value="1800">0x1800 — Generic Access</option>
-                            <option value="1801">0x1801 — Generic Attribute</option>
                             <option value="FEAA">0xFEAA — Eddystone</option>
-                            <option value="FED6">0xFED6 — Find My / Nearby (unofficial)</option>
-                            <option value="FEE7">0xFEE7 — Google Fast Pair Source</option>
-                            <option value="FEE9">0xFEE9 — Apple Continuity? (test)</option>
-                            <option value="1827">0x1827 — Mesh Provisioning</option>
-                            <option value="1828">0x1828 — Mesh Proxy</option>
                             <option value="manual">Custom…</option>
                         </select>
                         <input type="text" id="fServiceUuid" placeholder="e.g. 180F or full 128-bit" style="display:none"/>
@@ -199,6 +177,17 @@
                             <option value="dual">Classic &amp; LE (dual-mode)</option>
                             <option value="noflags">No Flags AD (undirected)</option>
                         </select>
+                    </div>
+                    <div class="field">
+                        <label for="fAppearanceCategory">Appearance category (SIG GAP)</label>
+                        <input type="text" id="fAppearanceSearch" placeholder="search ~250 appearances, e.g. phone, watch…" autocomplete="off"/>
+                        <select id="fAppearanceSelect" size="6">
+                            <option value="">Any / not filtered</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fAppearanceExact">Appearance exact (hex)</label>
+                        <input type="text" id="fAppearanceExact" placeholder="e.g. 0x0080 or 80"/>
                     </div>
                     <div class="field">
                         <label for="fMinHits">Min hits (seen at least N times)</label>

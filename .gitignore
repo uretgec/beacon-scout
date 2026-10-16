@@ -1,47 +1,42 @@
-# Build outputs / binaries — never commit these
+# ---- Build outputs & binaries (never commit) ----
 *.exe
 *.dll
 bin/
 build/bin/
 build/windows/*.exe
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+
+# ---- Frontend build artifacts (per-machine; rebuild with `npm run build`) ----
 frontend/dist/
-
-# Local dev artifacts (per-machine)
-frontend/node_modules/
 node_modules/
-/taskfile.json
-.task
+frontend/node_modules/
 
-# Wails generated bindings — regenerate on every machine with `wails3 generate bindings`.
-# The hand-written placeholder stub below is committed so fresh clones compile before generation.
+# ---- Wails generated bindings ----
+# Regenerate on every machine with `wails3 generate bindings`.
+# The committed placeholder stubs under frontend/bindings/github.com/uretgec/
+# keep fresh clones compiling before generation.
 /bindings/
 /frontend/bindings/*
 !/frontend/bindings/github.com/
 /frontend/bindings/github.com/*
 !/frontend/bindings/github.com/uretgec/
 /frontend/bindings/github.com/uretgec/*
-!/frontend/bindings/github.com/uretgec/beacon-scout/
-/frontend/bindings/github.com/wailsapp/
+!/frontend/bindings/github.com/wailsapp/
+/frontend/bindings/github.com/wailsapp/*
 
-# Mobile generated (per-machine; overlays hold absolute paths)
+# ---- Taskfile local overrides ----
+/taskfile.local.json
+.task
+
+# ---- Mobile per-machine generated (overlays contain absolute paths) ----
 build/ios/xcode/overlay.json
 build/ios/xcode/gen/
 build/android/overlay.json
 build/android/gen/
 
-# OS / editor noise
+# ---- OS / editor noise ----
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
 *.log
-
-# Belt-and-suspenders: Windows build artifacts in any location
-**/*.exe
-**/*.dll
-build/windows/installer/wails_tools.nsh.bak
-*.exe
-
-# Never ever: Windows binaries anywhere in the tree (enforced by pre-commit hook too)
-*.exe

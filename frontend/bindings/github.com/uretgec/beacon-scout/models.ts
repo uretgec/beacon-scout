@@ -122,6 +122,17 @@ export interface BeaconRecord {
      * dBm, if the radio reported it
      */
     "directRssi"?: number;
+
+    /**
+     * GAP Appearance (AD type 0x24), decoded via the embedded SIG catalogue.
+     * raw 16-bit value, nil when absent
+     */
+    "appearance"?: number | null;
+
+    /**
+     * Human-readable appearance name + category, e.g. "Laptop (Computer)".
+     */
+    "appearanceName"?: string;
 }
 
 /**
@@ -260,6 +271,15 @@ export interface FilterOptions {
      * RssiTrend: "" any | "up" last RSSI improved vs previous | "down" worsened.
      */
     "rssiTrend"?: string;
+
+    /**
+     * AppearanceExact / AppearanceCategory: GAP Appearance filter backed by the
+     * embedded bluetooth-numbers-database (gap_appearance.json). Exact is a hex
+     * value ("0x0080"); Category matches the SIG category name case-insensitively
+     * ("phone", "keyboard", …).
+     */
+    "appearanceExact"?: string;
+    "appearanceCategory"?: string;
 }
 
 /**

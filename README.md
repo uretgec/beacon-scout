@@ -1,61 +1,58 @@
-[![Repository](https://github.com/uretgec/beacon-scout)](https://github.com/uretgec/beacon-scout)
+# 📡 Beacon Scout
 
-# Welcome to Your New Wails3 Project
+A desktop BLE **beacon scanner** for macOS and Windows, built with [Wails v3](https://wails.io) (Go backend + web frontend) and [`tinygo-org/bluetooth`](https://github.com/tinygo-org/bluetooth).
 
-Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
+It **passively listens** for Bluetooth Low Energy advertisement packets — it never connects, pairs, or touches the devices. Every captured packet is decoded according to the Bluetooth Core Specification and the SIG Assigned Numbers database, then shown in a live, sortable, filterable table.
 
-## Getting Started
+🔗 Repository: <https://github.com/uretgec/beacon-scout>
 
-1. Navigate to your project directory in the terminal.
+## What it can do
 
-2. To run your application in development mode, use the following command:
+- **Passive scanning** — captures ADV_IND / SCAN_RSP advertisements from any nearby BLE device.
+- **Beacon decoding** — recognizes **iBeacon**, **Eddystone** (UID / URL / TLM), and **AltBeacon**, plus raw AD structures (Flags, Names, Service UUIDs, Service Data, Manufacturer Data, Tx Power, Appearance…).
+- **Full detail view** — click any row: sectioned tables show identity, RSSI & timing, parsed beacon data, and the complete raw advertisement as a hex dump *and* a field-by-field AD-structure breakdown. Copy the parsed table or the full JSON record with one click.
+- **Live filtering** — a collapsible sidebar with signal range (min/max RSSI), name/MAC/UUID matching, manufacturer picker (searchable, backed by the official SIG company list), GAP appearance picker (e.g. "phone", "watch"), advertised service UUIDs, beacon type, AD-type presence, connectability, address type, major/minor, Eddystone URL/Namespace and more. Filters re-apply automatically while you type.
+- **Sorting** — click column headers (RSSI, name, last seen, hit count…) to sort ascending/descending.
+- **Auto-refresh control** — choose how often the list updates (Off / 0.5 s / 1 s / 2 s / 5 s …). Start Scan turns on a 2 s refresh automatically; Stop Scan pauses it again.
+- **Local only** — no network access, no telemetry; everything runs on your machine. The SIG numbers database is embedded in the binary.
 
-   ```txt
-   wails3 dev
-   ```
+## Quick start
 
-   This will start your application and enable hot-reloading for both frontend and backend changes.
+```bash
+# prerequisites: Go 1.24+, Node 18+, Wails v3 CLI  (see INSTALL.md)
+go mod download
+cd frontend && npm install && cd ..
+wails3 generate bindings   # once per clone / after Go API changes
+wails3 dev                 # development mode with hot reload
+```
 
-3. To build your application for production, use:
+Production build: `wails3 build` (output under `build/bin/`).
 
-   ```txt
-   wails3 build
-   ```
+### First run notes
 
-   This will create a production-ready executable in the `build` directory.
+- **macOS**: grant the Bluetooth permission when prompted (System Settings → Privacy & Security → Bluetooth).
+- **Windows**: uses the native WinRT BLE stack; no extra drivers needed.
+- Debugging: open DevTools with `Cmd+Opt+I` (macOS) / `F12` (Windows); every scan step logs `[scan] …` lines to the terminal.
 
-## Exploring Wails3 Features
+## Project layout
 
-Now that you have your project set up, it's time to explore the features that Wails3 offers:
+| Path | Purpose |
+|---|---|
+| `main.go` | Wails app bootstrap, window, service registration |
+| `scanservice.go` | BLE adapter lifecycle, scan loop, events, filter/sort APIs |
+| `beaconstore.go` | de-duplicated device store, filtering, sorting |
+| `adparser.go` | AD-structure (TLV) + beacon-format decoder |
+| `numbersdb.go` + `data/numbers/` | embedded Bluetooth SIG Assigned Numbers lookup |
+| `frontend/` | TypeScript UI (vanilla TS + Vite) |
 
-1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
+Detailed setup, packaging and testing instructions: **[INSTALL.md](INSTALL.md)** · Change history: **[CHANGELOG.md](CHANGELOG.md)**
 
-2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
+## Credits
 
-   ```txt
-   go run .
-   ```
+- [Wails v3](https://wails.io) — desktop framework
+- [tinygo-org/bluetooth](https://github.com/tinygo-org/bluetooth) — cross-platform BLE
+- [NordicSemiconductor/bluetooth-numbers-database](https://github.com/NordicSemiconductor/bluetooth-numbers-database) — Bluetooth SIG assigned numbers (Apache-2.0), embedded via `//go:embed`
 
-   Note: Some examples may be under development during the alpha phase.
+## License
 
-3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3.wails.io/) for in-depth guides and API references.
-
-4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
-
-## Project Structure
-
-Take a moment to familiarize yourself with your project structure:
-
-- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
-- `main.go`: The entry point of your Go backend
-- `app.go`: Define your application structure and methods here
-- `wails.json`: Configuration file for your Wails project
-
-## Next Steps
-
-1. Modify the frontend in the `frontend/` directory to create your desired UI.
-2. Add backend functionality in `main.go`.
-3. Use `wails3 dev` to see your changes in real-time.
-4. When ready, build your application with `wails3 build`.
-
-Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+MIT (application code). Bundled SIG data files remain Apache-2.0 — see `data/numbers/LICENSE`.

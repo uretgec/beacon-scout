@@ -29,11 +29,42 @@ export function AdTypes(): $CancellablePromise<({ [_ in string]?: any } | null)[
 }
 
 /**
+ * Appearances returns the GAP appearance catalogue for the filter sidebar.
+ */
+export function Appearances(): $CancellablePromise<({ [_ in string]?: any } | null)[] | null> {
+    return $Call.ByID(1245156511);
+}
+
+/**
+ * CharacteristicNames returns the SIG names of all 16-bit GATT characteristic
+ * UUIDs from the embedded database, sorted by name. Bound for the frontend so
+ * future panels (Service Data decoding etc.) can resolve characteristic codes.
+ */
+export function CharacteristicNames(): $CancellablePromise<({ [_ in string]?: any } | null)[] | null> {
+    return $Call.ByID(3684555363);
+}
+
+/**
  * ClearResults empties the stored device list and immediately pushes an empty
  * snapshot so the table clears even before the next 1-second throttled update.
  */
 export function ClearResults(): $CancellablePromise<void> {
     return $Call.ByID(283510473);
+}
+
+/**
+ * Companies returns the full SIG company table for the filter sidebar picker.
+ */
+export function Companies(): $CancellablePromise<({ [_ in string]?: any } | null)[] | null> {
+    return $Call.ByID(1962086179);
+}
+
+/**
+ * CompanyName resolves a single company id (e.g. 0x4C -> "Apple, Inc.") using
+ * the embedded SIG table. Returns "" when unknown so the frontend can fall back.
+ */
+export function CompanyName(code: number): $CancellablePromise<string> {
+    return $Call.ByID(2122838312, code);
 }
 
 /**
@@ -82,6 +113,24 @@ export function GetTotalCount(): $CancellablePromise<number> {
  */
 export function Init(app: application$0.App | null): $CancellablePromise<void> {
     return $Call.ByID(4195536590, app);
+}
+
+/**
+ * ServiceNames returns the SIG names of all advertised 16-bit GATT service
+ * UUIDs, for populating the service-UUID picker in the filters sidebar.
+ */
+export function ServiceNames(): $CancellablePromise<({ [_ in string]?: any } | null)[] | null> {
+    return $Call.ByID(1903658413);
+}
+
+/**
+ * ServiceUuidNames is a bound ScanService method: it maps a record's advertised
+ * 16-bit service UUIDs to their SIG names (128-bit UUIDs pass through as-is).
+ * The frontend detail table calls this with rec.serviceUuids to render the
+ * "Service UUIDs" row as e.g. "0x180F Battery Service, 0x180A Heart Rate".
+ */
+export function ServiceUuidNames(uuids: string[] | null): $CancellablePromise<string> {
+    return $Call.ByID(515462580, uuids);
 }
 
 /**
