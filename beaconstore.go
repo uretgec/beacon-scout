@@ -542,7 +542,7 @@ func matches(r *BeaconRecord, f FilterOptions, now time.Time) bool {
 	if f.NameContains != "" && !strings.Contains(strings.ToLower(r.Name), strings.ToLower(f.NameContains)) {
 		return false
 	}
-	if f.NameExact != "" && !strings.EqualFold(r.Name, f.NameExact) {
+	if f.NameExact != "" && strings.ToLower(r.Name) != strings.ToLower(f.NameExact) {
 		return false
 	}
 	if f.MacContains != "" && !strings.Contains(strings.ToLower(r.Address), strings.ToLower(f.MacContains)) {
