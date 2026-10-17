@@ -84,6 +84,9 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: Install Task
+        uses: go-task/setup-task@v1
+
       # Pin the CLI to the same version as go.mod (v3.0.0-beta.30).
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
@@ -272,7 +275,9 @@ jobs:
       - name: Generate sha256 checksums
         run: |
           cd assets
-          for f in *; do sha256sum "$f" > "$f.sha256"; done
+          for f in *.dmg *-installer.exe *.zip; do
+            [ -f "$f" ] && sha256sum "$f" > "$f.sha256"
+          done
           ls -la
 
       - name: Create GitHub Release
