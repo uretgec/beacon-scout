@@ -188,7 +188,17 @@ jobs:
       # Extract → double-click beacon-scout.exe. Nothing to install/uninstall.
       - name: Create portable ZIP
         shell: pwsh
-        run: Compress-Archive -Path bin\beacon-scout.exe -DestinationPath dist\beacon-scout-windows-x64-portable.zip
+        run: |
+          # Taskfile vars: BIN_DIR="bin", APP_NAME from build/config.yml ->
+          # `task windows:build` emits exactly bin\beacon-scout.exe (see
+          # build/windows/Taskfile.yml line: go build -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe").
+          # Assert it exists so the job fails loudly instead of zipping nothing.
+          if (-not (Test-Path bin\beacon-scout.exe)) {
+            Write-Host "::error::bin\beacon-scout.exe not found — windows:build output path changed?"
+            Get-ChildItem -Recurse -Filter *.exe | Select-Object FullName
+            exit 1
+          }
+          Compress-Archive -Path bin\beacon-scout.exe -DestinationPath dist\beacon-scout-windows-x64-portable.zip
 
       - uses: actions/upload-artifact@v4
         with:
