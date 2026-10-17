@@ -2,10 +2,20 @@
 
 All notable changes to Beacon Scout. Short SHA = commit id in this repository (`git show <sha>`).
 
+## 2026-10-18
+
+- **CI/CD: GitHub Actions unsigned release pipeline** - new `.github/workflows/release.yml`:
+  - `test` job matrix (ubuntu / macos / windows): `gofmt` check, `go vet ./...`, `go test ./...`, frontend `npm ci && npm run build`. Builds are gated on all tests passing.
+  - `darwin` job (macos-latest): installs wails3 CLI + task, generates bindings, `task darwin:package:universal` + `package:dmg` -> universal (arm64+amd64) unsigned `.dmg`, ad-hoc codesign (`codesign -s -`).
+  - `windows` job (windows-latest): installs wails3 (+ GOPATH bin fix) and NSIS via choco, `task windows:build` + `task windows:package FORMAT=nsis INSTALL_SCOPE=user` -> per-user NSIS installer `.exe` (unsigned, no UAC).
+  - `release` job: sha256 checksums for every asset + GitHub Release with built-in instructions for running unsigned builds (Gatekeeper "Open Anyway" / `xattr -cr` on macOS; SmartScreen "More info -> Run anyway" / Properties->Unblock on Windows).
+  - Triggers: push of any `v*` tag, or manual `workflow_dispatch` (optional version + prerelease flag).
+- docs(README): new **"Downloading pre-built binaries"** section mirroring the release-notes steps for end users (macOS Gatekeeper + Windows SmartScreen guidance, checksum verification).
+
 ## 2026-10-17 (later)
 
-- ``8e3569f`` Ñ fix: unused-function warnings in `numbersdb.go` resolved by wiring the helpers into real call sites instead of deleting them: new bound method `ServiceUuidNames(uuids)` (detail table's "Service UUIDs" row now hydrates to SIG names, e.g. `0x180F Battery Service`, via `.sig-uuids` cells in `main.ts`), new bound method `CharacteristicNames()` (full GATT characteristic catalogue exposed to the frontend), and `hexToUint16`/`serviceNamesFor` covered by new `numbersdb_test.go`. Truly dead single-UUID lookups `serviceName()`/`characteristicName()` removed (superseded by the batch methods).
-- ``8271a59`` Ñ chore: remove stray `beacon-scout.exe` again; pre-commit binary guard hook installed.
+- ``8e3569f`` ï¿½ fix: unused-function warnings in `numbersdb.go` resolved by wiring the helpers into real call sites instead of deleting them: new bound method `ServiceUuidNames(uuids)` (detail table's "Service UUIDs" row now hydrates to SIG names, e.g. `0x180F Battery Service`, via `.sig-uuids` cells in `main.ts`), new bound method `CharacteristicNames()` (full GATT characteristic catalogue exposed to the frontend), and `hexToUint16`/`serviceNamesFor` covered by new `numbersdb_test.go`. Truly dead single-UUID lookups `serviceName()`/`characteristicName()` removed (superseded by the batch methods).
+- ``8271a59`` ï¿½ chore: remove stray `beacon-scout.exe` again; pre-commit binary guard hook installed.
 - ``708345a``/``047f04a`` â€” fix(ui): GAP Appearance picker populated from the embedded SIG database (`ScanService.Appearances()`); `appearanceSelect` ReferenceError resolved.
 - SIG Assigned Numbers integration (vendored, `//go:embed`): `numbersdb.go` + `data/numbers/` (company_ids, gap_appearance, service_uuids, characteristic_uuids + Apache-2.0 LICENSE from NordicSemiconductor/bluetooth-numbers-database). New service methods `Companies()`, `Appearances()`, `CompanyName(code)`, `ServiceNames()`; searchable Manufacturer & Appearance pickers in the filters sidebar; company names in detail view now resolve against the full SIG table (~1700 companies).
 - ``b5084c2`` â€” fix: header "total" counter live-fetch via `GetTotalCount()` on every render.

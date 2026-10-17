@@ -28,6 +28,45 @@ wails3 dev                 # development mode with hot reload
 
 Production build: `wails3 build` (output under `build/bin/`).
 
+## Downloading pre-built binaries
+
+GitHub Actions builds **unsigned** packages for macOS and Windows on every release
+(workflow: `.github/workflows/release.yml` — runs the test suite first, then
+publishes a `.dmg` and an NSIS installer to the GitHub Release page).
+Grab them from [Releases](https://github.com/uretgec/beacon-scout/releases).
+
+Because the builds are **not code-signed**, your OS will warn you on first launch.
+This is normal for open-source community builds:
+
+### macOS (`.dmg`)
+
+Gatekeeper may say *"can't be opened because its integrity cannot be verified"* or
+*"is damaged"*. Pick ONE of these:
+
+1. **Right-click (Control-click) → Open** in Finder, then click **Open**. Once is enough.
+2. If it says "damaged": run `xattr -cr "/Applications/Beacon Scout.app"` in Terminal, then launch again.
+3. Or **System Settings → Privacy & Security → "Open Anyway"** at the bottom.
+
+First scan also asks for Bluetooth permission — click **Allow**.
+
+### Windows (`*-installer.exe` or `*-portable.zip`)
+
+SmartScreen will say *"Windows protected your PC"*:
+
+1. Click **"More info"** → **"Run anyway"**.
+2. If the browser blocked the download: keep the file, then right-click →
+   Properties → check **"Unblock"** → OK before running.
+
+Two flavours are published:
+
+- **Installer** — per-user NSIS (no admin/UAC needed). WebView2 runtime is required
+  (preinstalled on Windows 11; bootstrapped on Windows 10 when online).
+- **Portable ZIP** — no install at all: extract anywhere and double-click
+  `beacon-scout.exe` (same SmartScreen step applies once). Uninstall = delete folder.
+
+Each release asset ships with a `.sha256` checksum you can verify with
+`shasum -a 256 <file>` (macOS/Linux) or `Get-FileHash <file>` (PowerShell).
+
 ### First run notes
 
 - **macOS**: grant the Bluetooth permission when prompted (System Settings → Privacy & Security → Bluetooth).

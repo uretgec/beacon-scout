@@ -23,7 +23,7 @@ Run this once after cloning (and again whenever you change Go service methods).
 |---|---|---|
 | Go | 1.25 or newer | <https://go.dev/dl/> |
 | Node.js + npm | 18 or newer | <https://nodejs.org/> |
-| Wails CLI v3 | `v3.0.0-beta.29` or newer | Installed with Go (see below) |
+| Wails CLI v3 | `v3.0.0-beta.30` or newer | Installed with Go (see below) |
 | Task (optional) | any recent version | <https://taskfile.dev> — used by the project's `Taskfile.yml` |
 | Hardware | BLE 4.0+ adapter | Built-in laptop Bluetooth is fine; VMs usually do **not** have Bluetooth access |
 
