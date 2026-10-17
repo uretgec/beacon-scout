@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "beacon_scout"
+name: "beacon-scout"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.1.0"
+version: "0.0.1"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A Beacon_Scout application"
-vendor: "My Company"
+description: "BLE beacon advertisement scanner (macOS / Windows)"
+vendor: "Uretgec"
 homepage: "https://wails.io"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/beacon_scout"
-    dst: "/usr/local/bin/beacon_scout"
+  - src: "./bin/beacon-scout"
+    dst: "/usr/local/bin/beacon-scout"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/beacon_scout.png"
-  - src: "./build/linux/beacon_scout.desktop"
-    dst: "/usr/share/applications/beacon_scout.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/beacon-scout.png"
+  - src: "./build/linux/beacon-scout.desktop"
+    dst: "/usr/share/applications/beacon-scout.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

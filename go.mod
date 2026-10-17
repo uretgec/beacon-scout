@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/tinygo-org/cbgo v0.0.4
-	github.com/wailsapp/wails/v3 v3.0.0-beta.29
+	github.com/wailsapp/wails/v3 v3.0.0-beta.30
 	tinygo.org/x/bluetooth v0.16.0
 )
 

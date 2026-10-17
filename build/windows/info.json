@@ -1,15 +1,15 @@
 {
 	"fixed": {
-		"file_version": "0.1.0"
+		"file_version": "0.0.1"
 	},
 	"info": {
-		"0000": {
-			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "A Beacon_Scout application",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+		"0409": {
+			"ProductVersion": "0.0.1",
+			"CompanyName": "Uretgec",
+			"FileDescription": "BLE beacon advertisement scanner (macOS / Windows)",
+			"LegalCopyright": "(c) 2026, Uretgec",
+			"ProductName": "Beacon Scout",
+			"Comments": "A desktop BLE beacon scanner"
 		}
 	}
 }

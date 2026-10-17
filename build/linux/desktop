@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=A Beacon_Scout application
+Name=Beacon Scout
+Comment=BLE beacon advertisement scanner (macOS / Windows)
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/beacon_scout %u
+Exec=/usr/local/bin/beacon-scout %u
 Terminal=false
 Type=Application
-Icon=beacon_scout
+Icon=beacon-scout
 Categories=Utility;
-StartupWMClass=beacon_scout
+StartupWMClass=beacon-scout
 
  

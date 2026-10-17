@@ -1,6 +1,7 @@
 # ---- Build outputs & binaries (never commit) ----
 *.exe
 *.dll
+.gradle
 bin/
 build/bin/
 build/windows/*.exe
@@ -33,6 +34,7 @@ build/ios/xcode/overlay.json
 build/ios/xcode/gen/
 build/android/overlay.json
 build/android/gen/
+build/android/build/
 
 # ---- OS / editor noise ----
 .DS_Store
