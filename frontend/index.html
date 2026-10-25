@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/wails.png"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+    <link rel="stylesheet" href="/src/app.css"/>
+    <title>Beacon Scout</title>
+</head>
+<body>
+<div class="app">
+    <header>
+        <h1>📡 Beacon Scout</h1>
+        <button id="toggleScan" class="btn primary">Start Scan</button>
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Idle</span>
+        <button id="clear" class="btn">Clear</button>
+        <button id="toggleFilters" class="btn filters-toggle open" title="Show/hide the filters sidebar (green = open, grey = closed)">Filters ▤</button>
+        <!-- Auto-refresh: how often the visible list re-pulls results with the current filters. 0 = paused. -->
+        <span class="refresh-ctl" title="List refresh interval in ms (0 = no auto-refresh; scan keeps running in background)">
+            <label for="refreshMs">Refresh&nbsp;(ms)</label>
+            <input type="number" id="refreshMs" value="0" min="0" step="500" style="width:86px"/>
+            <select id="refreshPreset" title="Quick presets">
+                <option value="0" selected>Off</option>
+                <option value="500">0.5 s</option>
+                <option value="1000">1 s</option>
+                <option value="2000">2 s</option>
+                <option value="5000">5 s</option>
+                <option value="10000">10 s</option>
+            </select>
+            <span class="muted" id="refreshHint">paused</span>
+        </span>
+        <span class="count-info" id="countInfo">0 beacons</span>
+    </header>
+
+    <div class="main">
+        <!-- Filters live in a collapsible left sidebar -->
+        <aside class="sidebar open" id="filterPanel">
+            <div class="sidebar-inner">
+                <h2>Filters</h2>
+
+                <div class="field">
+                    <label for="fMinRssi">Min RSSI (dBm)</label>
+                    <input type="number" id="fMinRssi" value="-200" min="-200" max="0"/>
+                </div>
+                <div class="field">
+                    <label for="fMaxRssi">Max RSSI (dBm)</label>
+                    <!-- 0 (or 200) = effectively "no ceiling" (disabled); real RSSI is always <= 0..20 -->
+                    <input type="number" id="fMaxRssi" value="0" min="-200" max="200"/>
+                </div>
+                <div class="field">
+                    <label for="fName">Name contains</label>
+                    <input type="text" id="fName" placeholder="e.g. MyBeacon"/>
+                </div>
+                <div class="field">
+                    <label for="fMac">MAC contains</label>
+                    <input type="text" id="fMac" placeholder="e.g. AA:BB"/>
+                </div>
+                <div class="field">
+                    <label for="fUuid">UUID / service data contains</label>
+                    <input type="text" id="fUuid" placeholder="hex, dashes optional"/>
+                </div>
+                <div class="field">
+                    <label for="fCompany">Company (Bluetooth SIG)</label>
+                    <input type="text" id="fCompanySearch" placeholder="search ~1700 companies, e.g. apple, samsung…" autocomplete="off"/>
+                    <select id="fCompanySelect" size="6">
+                        <option value="">Any company</option>
+                        <option value="manual">Custom hex…</option>
+                    </select>
+                    <input type="text" id="fCompany" placeholder="custom hex, e.g. 4c" style="display:none"/>
+                </div>
+                <div class="field">
+                    <label for="fType">Beacon format</label>
+                    <select id="fType">
+                        <option value="any">Any format</option>
+                        <option value="ibeacon">iBeacon (Apple proximity)</option>
+                        <option value="eddystone-url">Eddystone-URL (web link beacon)</option>
+                        <option value="eddystone-uid">Eddystone-UID (id beacon)</option>
+                        <option value="eddystone-tlm">Eddystone-TLM (telemetry)</option>
+                        <option value="altbeacon">AltBeacon (open format)</option>
+                        <option value="google">Any Google/Eddystone frame</option>
+                        <option value="named">Named devices</option>
+                        <option value="unnamed">Unnamed devices</option>
+                        <option value="unknown">Unknown / other vendor</option>
+                    </select>
+                </div>
+
+                <details class="advanced">
+                    <summary>Advanced (Core Spec v5.x)</summary>
+                    <div class="field">
+                        <label for="fNameExact">Name equals (exact)</label>
+                        <input type="text" id="fNameExact" placeholder="case-insensitive"/>
+                    </div>
+                    <div class="field">
+                        <label for="fNamePrefix">Name starts with</label>
+                        <input type="text" id="fNamePrefix"/>
+                    </div>
+                    <div class="field">
+                        <label for="fNameSuffix">Name ends with</label>
+                        <input type="text" id="fNameSuffix"/>
+                    </div>
+                    <div class="field">
+                        <label for="fAdTypes">AD types present (Ctrl/Cmd+click)</label>
+                        <select id="fAdTypes" multiple size="8"><!-- filled from AdTypes() binding --></select>
+                    </div>
+                    <div class="field">
+                        <label for="fServiceUuid">Service UUID advertised</label>
+                        <select id="fServiceUuidSelect" size="6">
+                            <option value="">Any / not filtered</option>
+                            <option value="FEAA">0xFEAA — Eddystone</option>
+                            <option value="manual">Custom…</option>
+                        </select>
+                        <input type="text" id="fServiceUuid" placeholder="e.g. 180F or full 128-bit" style="display:none"/>
+                    </div>
+                    <div class="field">
+                        <label for="fRawContains">Raw payload contains (hex)</label>
+                        <input type="text" id="fRawContains" placeholder="any byte pattern, e.g. BEAC"/>
+                    </div>
+                    <div class="field">
+                        <label for="fConnectable">Connectable (AD Flags)</label>
+                        <select id="fConnectable">
+                            <option value="">Any</option>
+                            <option value="yes">Connectable only</option>
+                            <option value="no">Non-connectable only</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fAddressRandom">Address type</label>
+                        <select id="fAddressRandom">
+                            <option value="">Any</option>
+                            <option value="yes">Random only</option>
+                            <option value="no">Public only</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fMajor">iBeacon/AltBeacon Major (=)</label>
+                        <input type="number" id="fMajor" value="0" min="0" placeholder="0 = off"/>
+                    </div>
+                    <div class="field">
+                        <label for="fMinor">iBeacon/AltBeacon Minor (=)</label>
+                        <input type="number" id="fMinor" value="0" min="0" placeholder="0 = off"/>
+                    </div>
+                    <div class="field">
+                        <label for="fEddUrl">Eddystone URL contains</label>
+                        <input type="text" id="fEddUrl" placeholder="e.g. g.co"/>
+                    </div>
+                    <div class="field">
+                        <label for="fNamespace">Eddystone-UID namespace (hex prefix)</label>
+                        <input type="text" id="fNamespace" placeholder="10 hex chars, e.g. 292F..."/>
+                    </div>
+                    <div class="field">
+                        <label for="fInstance">Eddystone-UID instance (hex prefix)</label>
+                        <input type="text" id="fInstance" placeholder="6 hex chars"/>
+                    </div>
+                    <div class="field">
+                        <label for="fMinTx">Min advertised Tx Power (dBm)</label>
+                        <input type="number" id="fMinTx" value="0" placeholder="0 = off"/>
+                    </div>
+                    <div class="field">
+                        <label for="fMaxTx">Max advertised Tx Power (dBm)</label>
+                        <input type="number" id="fMaxTx" value="0" placeholder="0 = off"/>
+                    </div>
+                    <div class="field">
+                        <label for="fRssiTrend">RSSI trend (last sample)</label>
+                        <select id="fRssiTrend">
+                            <option value="">Any</option>
+                            <option value="up">Getting closer (↑)</option>
+                            <option value="down">Moving away (↓)</option>
+                            <option value="flat">Stable (=)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fDeviceType">Device type (AD Flags)</label>
+                        <select id="fDeviceType">
+                            <option value="">Any</option>
+                            <option value="le">LE Only (BLE)</option>
+                            <option value="dual">Classic &amp; LE (dual-mode)</option>
+                            <option value="noflags">No Flags AD (undirected)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fAppearanceCategory">Appearance category (SIG GAP)</label>
+                        <input type="text" id="fAppearanceSearch" placeholder="search ~250 appearances, e.g. phone, watch…" autocomplete="off"/>
+                        <select id="fAppearanceSelect" size="6">
+                            <option value="">Any / not filtered</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fAppearanceExact">Appearance exact (hex)</label>
+                        <input type="text" id="fAppearanceExact" placeholder="e.g. 0x0080 or 80"/>
+                    </div>
+                    <div class="field">
+                        <label for="fMinHits">Min hits (seen at least N times)</label>
+                        <input type="number" id="fMinHits" value="0" min="0" placeholder="0 = off"/>
+                    </div>
+                </details>
+
+                <div class="field check">
+                    <input type="checkbox" id="fHasName"/><label for="fHasName">Only with a name</label>
+                </div>
+                <div class="field check">
+                    <input type="checkbox" id="fActiveOnly" checked/>
+                    <label for="fActiveOnly">Only active (last</label>
+                    <input type="number" id="fActiveWindow" value="10" min="1" style="width:60px"/>
+                    <label for="fActiveWindow">s)</label>
+                </div>
+                <div class="filter-actions">
+                    <button id="applyFilters" class="btn small primary">Apply</button>
+                    <button id="resetFilters" class="btn small">Reset</button>
+                </div>
+            </div>
+        </aside>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th data-sort="rssi">RSSI</th>
+                    <th data-sort="avgRssi">Avg RSSI</th>
+                    <th data-sort="name">Name</th>
+                    <th data-sort="address">Address</th>
+                    <th>Type</th>
+                    <th data-sort="lastSeen">Last Seen</th>
+                    <th data-sort="firstSeen">First Seen</th>
+                    <th data-sort="count">Hits</th>
+                </tr>
+                </thead>
+                <tbody id="rows">
+                <tr><td colspan="8" class="empty-msg">No beacons yet. Press “Start Scan”.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="error-toast" id="errorToast"></div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

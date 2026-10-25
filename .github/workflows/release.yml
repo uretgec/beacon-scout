@@ -1,0 +1,301 @@
+name: Release
+
+# Builds unsigned macOS (.dmg) and Windows (NSIS .exe installer) packages via
+# GitHub Actions and publishes them to a GitHub Release.
+#
+# Trigger manually from the "Actions" tab (Run workflow), or automatically on
+# any tag that starts with "v" (e.g. v0.1.0).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v0.1.0). Empty = use commit SHA."
+        required: false
+        default: ""
+      prerelease:
+        description: "Mark as pre-release"
+        type: boolean
+        required: false
+        default: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # needed to create the release + upload assets
+
+env:
+  GO_VERSION: "1.25"
+  NODE_VERSION: "20"
+  APP_NAME: beacon-scout
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Tests — must pass before anything is built/released
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: gofmt check (linux only)
+        if: runner.os == 'Linux'
+        run: |
+          FILES=$(gofmt -l .)
+          if [ -n "$FILES" ]; then echo "Unformatted files:"; echo "$FILES"; exit 1; fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: frontend deps + production build
+        working-directory: frontend
+        run: npm ci && npm run build
+
+  # ---------------------------------------------------------------------------
+  # macOS — universal (arm64 + amd64) unsigned .app packaged as .dmg
+  # ---------------------------------------------------------------------------
+  darwin:
+    name: Build macOS (.dmg)
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install Task
+        uses: go-task/setup-task@v1
+
+      # Pin the CLI to the same version as go.mod (v3.0.0-beta.30).
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate TypeScript bindings
+        run: wails3 generate bindings -ts
+
+      - name: Build universal app bundle + dmg (unsigned)
+        run: task darwin:package:universal && task darwin:package:dmg
+
+      - name: Ad-hoc codesign (keeps Gatekeeper from killing it instantly)
+        run: |
+          codesign --force --deep --sign - bin/${{ env.APP_NAME }}.app || true
+          codesign --force --sign - bin/${{ env.APP_NAME }}*.dmg 2>/dev/null || true
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          mv bin/${{ env.APP_NAME }}*.dmg dist/
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beacon-scout-macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Windows — NSIS installer (x64), unsigned
+  # ---------------------------------------------------------------------------
+  windows:
+    name: Build Windows (installer .exe)
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      # Pin the wails3 CLI to the SAME version as go.mod (v3.0.0-beta.30) so
+      # bindings/build behaviour matches the library. The explicit go-install
+      # step also pre-populates GOPATH\bin, so later steps never depend on a
+      # PATH edit taking effect mid-job (Add-Content $env:GITHUB_PATH only
+      # applies to SUBSEQUENT steps and is unreliable inside `pwsh` on Windows).
+      - name: Install wails3 CLI (pinned to go.mod version)
+        shell: pwsh
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+          Add-Content $env:GITHUB_PATH "$env:USERPROFILE\go\bin"
+
+      - name: Install NSIS (makensis)
+        run: choco install nsis -y --no-progress
+
+      - name: Install Task
+        uses: go-task/setup-task@v1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Prepend GOPATH\bin to PATH inside the step itself — immune to any
+      # GITHUB_PATH propagation issues between steps.
+      - name: Generate TypeScript bindings
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\go\bin;$env:Path"
+          wails3 generate bindings -ts
+
+      - name: Build + package NSIS installer (unsigned)
+        shell: pwsh
+        run: |
+          task windows:build
+          task windows:package FORMAT=nsis INSTALL_SCOPE=user
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Get-ChildItem -Recurse -Include *-installer.exe | Copy-Item -Destination dist\
+          Get-ChildItem dist
+
+      # Portable ZIP of the standalone .exe — no installer, no SmartScreen
+      # prompt at install time (the exe itself still triggers "keep/discard").
+      # Extract → double-click beacon-scout.exe. Nothing to install/uninstall.
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          # Taskfile vars: BIN_DIR="bin", APP_NAME from build/config.yml ->
+          # `task windows:build` emits exactly bin\beacon-scout.exe (see
+          # build/windows/Taskfile.yml line: go build -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe").
+          # Assert it exists so the job fails loudly instead of zipping nothing.
+          if (-not (Test-Path bin\beacon-scout.exe)) {
+            Write-Host "::error::bin\beacon-scout.exe not found — windows:build output path changed?"
+            Get-ChildItem -Recurse -Filter *.exe | Select-Object FullName
+            exit 1
+          }
+          Compress-Archive -Path bin\beacon-scout.exe -DestinationPath dist\beacon-scout-windows-x64-portable.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beacon-scout-windows
+          path: |
+            dist/*-installer.exe
+            dist/*.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Publish GitHub Release (unsigned binaries + usage notes)
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish Release
+    needs: [darwin, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Compute version / tag
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "TAG=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG=v0.0.0-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Write release notes (how to run UNSIGNED builds)
+        run: |
+          cat > notes.md <<'EOF'
+          ## Beacon Scout — unsigned build
+
+          These binaries are **not code-signed** (no Apple Developer ID / no Windows
+          code-signing certificate). Your OS will warn you on first launch. This is
+          expected for open-source community builds.
+
+          ### macOS — how to open the `.dmg`
+          Gatekeeper will say *"Beacon Scout can't be opened because its integrity
+          cannot be verified"* or *"is damaged"*. Pick ONE of these:
+
+          1. **Right-click → Open** (or Control-click → Open) on the app in Finder,
+             then click **Open** in the dialog. Do this once; after that normal
+             double-click works.
+          2. If it says "damaged": open Terminal and run
+             `xattr -cr "/Applications/Beacon Scout.app"`
+             (or point it at the app wherever you moved it), then launch again.
+          3. Or allow it via **System Settings → Privacy & Security → Scroll down →
+             "Open Anyway"**.
+
+          > First scan also requires Bluetooth permission: when prompted, click
+          > **Allow**; otherwise see System Settings → Privacy & Security → Bluetooth.
+
+          ### Windows — installer `.exe` (or portable `.zip`)
+          Edge/Chrome or the download bar will show *"this file may be dangerous"*,
+          and SmartScreen will block the first run ("Windows protected your PC"):
+
+          1. Click **"More info"** on the SmartScreen dialog, then **"Run anyway"**.
+          2. If the browser blocked the download: keep the file
+             (⋯ → Keep), and unblock it via right-click → Properties →
+             check **"Unblock"** → OK before running.
+
+          Two flavours are published:
+          * `*-installer.exe` — per-user NSIS installer (no admin/UAC required),
+            installs into your user profile with a Start-Menu shortcut.
+            WebView2 runtime is required (preinstalled on Windows 11; the
+            installer bootstraps it on Windows 10 if online).
+          * `*-portable.zip` — no installation at all: extract anywhere and
+            double-click `beacon-scout.exe`. Same SmartScreen "Run anyway"
+            step applies to the exe itself. Good for air-gapped machines or
+            when you don't want an install footprint. Uninstall = delete folder.
+
+          ### Verify what you downloaded (optional)
+          Each asset has a `.sha256` checksum next to it:
+          `shasum -a 256 <file>` (macOS/Linux) or
+          `Get-FileHash <file>` (PowerShell) should match.
+          EOF
+
+      - name: Generate sha256 checksums
+        run: |
+          cd assets
+          for f in *.dmg *-installer.exe *.zip; do
+            [ -f "$f" ] && sha256sum "$f" > "$f.sha256"
+          done
+          ls -la
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.TAG }}
+          name: Beacon Scout ${{ steps.vars.outputs.TAG }}
+          body_path: notes.md
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' }}
+          files: |
+            assets/*

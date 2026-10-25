@@ -1,33 +1,44 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# ---- Build outputs & binaries (never commit) ----
 *.exe
-*.exe~
 *.dll
-*.so
-*.dylib
+.gradle
+bin/
+build/bin/
+build/windows/*.exe
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 
-# Test binary, built with `go test -c`
-*.test
+# ---- Frontend build artifacts (per-machine; rebuild with `npm run build`) ----
+frontend/dist/
+node_modules/
+frontend/node_modules/
 
-# Code coverage profiles and other test artifacts
-*.out
-coverage.*
-!coverage.go
-*.coverprofile
-profile.cov
+# ---- Wails generated bindings ----
+# Regenerate on every machine with `wails3 generate bindings`.
+# The committed placeholder stubs under frontend/bindings/github.com/uretgec/
+# keep fresh clones compiling before generation.
+/bindings/
+/frontend/bindings/*
+!/frontend/bindings/github.com/
+/frontend/bindings/github.com/*
+!/frontend/bindings/github.com/uretgec/
+/frontend/bindings/github.com/uretgec/*
+!/frontend/bindings/github.com/wailsapp/
+/frontend/bindings/github.com/wailsapp/*
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# ---- Taskfile local overrides ----
+/taskfile.local.json
+.task
 
-# Go workspace file
-go.work
-go.work.sum
+# ---- Mobile per-machine generated (overlays contain absolute paths) ----
+build/ios/xcode/overlay.json
+build/ios/xcode/gen/
+build/android/overlay.json
+build/android/gen/
+build/android/build/
 
-# env file
-.env
-
-# Editor/IDE
-# .idea/
-# .vscode/
+# ---- OS / editor noise ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
