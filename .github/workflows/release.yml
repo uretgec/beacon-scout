@@ -43,6 +43,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Wails v3 on Linux links against GTK4 + WebKitGTK via cgo/pkg-config.
+      # Without these, `go vet`/`go build` fail with:
+      #   Package gtk4 was not found in the pkg-config search path.
+      - name: Install Linux GUI deps (gtk4/webkit2gtk)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libwebkitgtk-6.0-dev \
+            pkg-config gcc
+
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -90,6 +100,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      # Wails v3 on Linux links against GTK4 + WebKitGTK via cgo/pkg-config;
+      # the ubuntu leg of this matrix fails without these dev packages.
+      - name: Install Linux GUI deps (gtk4/webkit2gtk)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libwebkitgtk-6.0-dev \
+            pkg-config gcc
 
       - uses: actions/setup-go@v5
         with:
