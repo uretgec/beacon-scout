@@ -26,7 +26,7 @@ permissions:
   contents: write # needed to create the release + upload assets
 
 env:
-  GO_VERSION: "1.25"
+  GO_VERSION: "1.26"
   NODE_VERSION: "24"
   APP_NAME: beacon-scout
 
@@ -48,9 +48,18 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      # The Vite config loads the `wailsTypedEventsPlugin`, which requires the
+      # generated event-bindings module to exist BEFORE any build. Generate it
+      # here so `npm run build` succeeds on a fresh checkout.
+      - name: Install wails3 CLI (pinned to go.mod version)
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+
+      - name: Generate TypeScript bindings
+        run: wails3 generate bindings -ts
 
       - name: Frontend deps + production build (provides frontend/dist for embed)
         working-directory: frontend
@@ -87,9 +96,17 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      # Vite's wailsTypedEventsPlugin needs generated event bindings to exist
+      # before any frontend build can succeed.
+      - name: Install wails3 CLI (pinned to go.mod version)
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+
+      - name: Generate TypeScript bindings
+        run: wails3 generate bindings -ts
 
       - name: Frontend deps + production build
         working-directory: frontend
@@ -120,7 +137,7 @@ jobs:
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -183,7 +200,7 @@ jobs:
       - name: Install Task
         uses: go-task/setup-task@v1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
