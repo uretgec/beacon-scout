@@ -8,7 +8,11 @@ build/windows/*.exe
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 
 # ---- Frontend build artifacts (per-machine; rebuild with `npm run build`) ----
-frontend/dist/
+# Keep a `.gitkeep` so the folder exists on fresh clones — main.go embeds
+# `//go:embed all:frontend/dist`, and Go refuses to compile if the directory
+# itself is missing. CI builds the real assets into it before go vet/test.
+frontend/dist/*
+!frontend/dist/.gitkeep
 node_modules/
 frontend/node_modules/
 
