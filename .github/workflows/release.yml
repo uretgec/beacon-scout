@@ -4,13 +4,13 @@ name: Release
 # GitHub Actions and publishes them to a GitHub Release.
 #
 # Trigger manually from the "Actions" tab (Run workflow), or automatically on
-# any tag that starts with "v" (e.g. v0.1.0).
+# any tag that starts with "v" (e.g. v1.1.0).
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. v0.1.0). Empty = use commit SHA."
+        description: "Release version (e.g. v1.1.0). Empty = use commit SHA."
         required: false
         default: ""
       prerelease:
@@ -27,15 +27,53 @@ permissions:
 
 env:
   GO_VERSION: "1.25"
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
   APP_NAME: beacon-scout
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Tests — must pass before anything is built/released
+  # Lint + tests — the real quality gate. Runs on Linux only because the repo's
+  # Go sources use cgo (CoreBluetooth) which cannot cross-compile without a macOS
+  # SDK. The frontend is built FIRST so that `//go:embed all:frontend/dist`
+  # resolves; otherwise go vet/go test fail with "no matching files found".
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Frontend deps + production build (provides frontend/dist for embed)
+        working-directory: frontend
+        run: npm ci && npm run build
+
+      - name: gofmt check
+        run: |
+          FILES=$(gofmt -l .)
+          if [ -n "$FILES" ]; then echo "Unformatted files:"; echo "$FILES"; exit 1; fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+  # ---------------------------------------------------------------------------
+  # Smoke test — verifies each OS runner can at least compile the app (with its
+  # platform-specific BLE bindings). Does NOT run static analysis.
   # ---------------------------------------------------------------------------
   test:
-    name: Test (${{ matrix.os }})
+    name: Build smoke (${{ matrix.os }})
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
@@ -49,32 +87,23 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: gofmt check (linux only)
-        if: runner.os == 'Linux'
-        run: |
-          FILES=$(gofmt -l .)
-          if [ -n "$FILES" ]; then echo "Unformatted files:"; echo "$FILES"; exit 1; fi
-
-      - name: go vet
-        run: go vet ./...
-
-      - name: go test
-        run: go test ./...
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: frontend deps + production build
+      - name: Frontend deps + production build
         working-directory: frontend
         run: npm ci && npm run build
+
+      - name: Compile (go build)
+        run: go build .
 
   # ---------------------------------------------------------------------------
   # macOS — universal (arm64 + amd64) unsigned .app packaged as .dmg
   # ---------------------------------------------------------------------------
   darwin:
     name: Build macOS (.dmg)
-    needs: test
+    needs: [lint, test]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +156,7 @@ jobs:
   # ---------------------------------------------------------------------------
   windows:
     name: Build Windows (installer .exe)
-    needs: test
+    needs: [lint, test]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
