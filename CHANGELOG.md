@@ -2,6 +2,44 @@
 
 All notable changes to Beacon Scout. Short SHA = commit id in this repository (`git show <sha>`).
 
+## Latest (2026-10-27)
+
+### Fixed
+
+- **CI (release.yml):** gofmt gate failed on `build/ios/*.go` files. Root cause:
+  the `.gitignore` rule `build/` was silently excluding ALL Wails build source
+  assets from every clone — platform Taskfiles, Info.plist files, icons,
+  `main.m`/`main_ios.go`, Xcode templates. Fresh clones therefore had no
+  darwin/windows/ios Taskfiles at all, which explains the cascading errors
+  (`ios/arm64 requires external (cgo) linking`, missing embed dirs, etc.).
+  Now `build/` is tracked; only output paths are ignored (`build/bin/`,
+  `build/windows/*.exe`, NSIS bootstrap, `Assets.car`). The three iOS Go files
+  were `gofmt -w`-formatted and 75 previously-untracked source files committed
+  (verified: zero exe/dll/o/a/dylib among them). Commit `2c08825`.
+- **CI (release.yml):** gofmt step now checks tracked Go files only
+  (`git ls-files '*.go' | xargs gofmt -l`), so generated bindings output can
+  never break the lint gate again. Commit `25b334e`.
+
+## Previous (2026-10-26)
+
+### Fixed#2
+
+- **CI (release.yml):** Frontend build failed on fresh checkouts with
+  `[plugin wails-typed-events] Event bindings module not found …` — Vite's
+  `wailsTypedEventsPlugin` requires generated event bindings before any build.
+  The `lint` and `test` jobs now install the pinned wails3 CLI
+  (`v3.0.0-beta.30`, matching go.mod) and run `wails3 generate bindings -ts`
+  before `npm run build`. Also bumped runner toolchains for deprecation
+  warnings: `GO_VERSION 1.25 → 1.26`, `NODE_VERSION 20 → 24`,
+  `actions/setup-node@v4 → v5` (all jobs). Commit `f26ef54`.
+- **CI (release.yml):** `go vet`/`go test` failed on macOS & Windows runners with
+  `pattern all:frontend/dist: no matching files found`. Static analysis now runs in a
+  dedicated `lint` job that builds the frontend first; the per-OS matrix became a build
+  smoke test (`npm ci && npm run build` + `go build .`) gated behind lint. Commit `8b4dbe9`.
+- Fresh clones always have `frontend/dist/` present (committed `.gitkeep`; ignore rule is
+  now `frontend/dist/*` + exception), so `//go:embed all:frontend/dist` never breaks
+  before `npm run build`. Commit `8b4dbe9`.
+
 ## 2026-10-18
 
 - **CI/CD: GitHub Actions unsigned release pipeline** - new `.github/workflows/release.yml`:
@@ -14,8 +52,8 @@ All notable changes to Beacon Scout. Short SHA = commit id in this repository (`
 
 ## 2026-10-17 (later)
 
-- ``8e3569f`` � fix: unused-function warnings in `numbersdb.go` resolved by wiring the helpers into real call sites instead of deleting them: new bound method `ServiceUuidNames(uuids)` (detail table's "Service UUIDs" row now hydrates to SIG names, e.g. `0x180F Battery Service`, via `.sig-uuids` cells in `main.ts`), new bound method `CharacteristicNames()` (full GATT characteristic catalogue exposed to the frontend), and `hexToUint16`/`serviceNamesFor` covered by new `numbersdb_test.go`. Truly dead single-UUID lookups `serviceName()`/`characteristicName()` removed (superseded by the batch methods).
-- ``8271a59`` � chore: remove stray `beacon-scout.exe` again; pre-commit binary guard hook installed.
+- `8e3569f` fix: unused-function warnings in `numbersdb.go` resolved by wiring the helpers into real call sites instead of deleting them: new bound method `ServiceUuidNames(uuids)` (detail table's "Service UUIDs" row now hydrates to SIG names, e.g. `0x180F Battery Service`, via `.sig-uuids` cells in `main.ts`), new bound method `CharacteristicNames()` (full GATT characteristic catalogue exposed to the frontend), and `hexToUint16`/`serviceNamesFor` covered by new `numbersdb_test.go`. Truly dead single-UUID lookups `serviceName()`/`characteristicName()` removed (superseded by the batch methods).
+- `8271a59` chore: remove stray `beacon-scout.exe` again; pre-commit binary guard hook installed.
 - ``708345a``/``047f04a`` — fix(ui): GAP Appearance picker populated from the embedded SIG database (`ScanService.Appearances()`); `appearanceSelect` ReferenceError resolved.
 - SIG Assigned Numbers integration (vendored, `//go:embed`): `numbersdb.go` + `data/numbers/` (company_ids, gap_appearance, service_uuids, characteristic_uuids + Apache-2.0 LICENSE from NordicSemiconductor/bluetooth-numbers-database). New service methods `Companies()`, `Appearances()`, `CompanyName(code)`, `ServiceNames()`; searchable Manufacturer & Appearance pickers in the filters sidebar; company names in detail view now resolve against the full SIG table (~1700 companies).
 - ``b5084c2`` — fix: header "total" counter live-fetch via `GetTotalCount()` on every render.

@@ -37,7 +37,8 @@ func TestParseIBeacon(t *testing.T) {
 
 func TestParseEddystoneURL(t *testing.T) {
 	// frame 0x10, tx -20, scheme https://www. (0x01), "example", .com (0x00)
-	raw := mustHex(t, "02 01 06 12 16 aa fe 10 ec ff 01 65 78 61 6d 70 6c 65 00")
+	// AD length is 0x0E (14): type(1) + UUID(2) + frame(1) + txPower(1) + 9 URL bytes.
+	raw := mustHex(t, "02 01 06 0e 16 aa fe 10 ec 01 65 78 61 6d 70 6c 65 00")
 	p := parseAdvertisement(raw)
 	ok := false
 	for _, s := range p.Structures {
