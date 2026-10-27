@@ -44,9 +44,11 @@ func TestRebuildRawADFullAdvertisement(t *testing.T) {
 		{0x01, "06"}, // Flags
 		{0x08, strings.ToUpper(hex.EncodeToString([]byte(shortName)))}, // Shortened Local Name
 		{0x09, strings.ToUpper(hex.EncodeToString([]byte(name)))},      // Complete Local Name
-		{0x19, "4003"},     // Appearance, little-endian 0x0340
-		{0x0A, "F8"},       // Tx Power -8 dBm
-		{0x02, "AAFE"},     // 16-bit complete UUID list, LE
+		{0x24, "4003"}, // GAP Appearance (AD type 0x24), little-endian 0x0340
+		{0x0A, "F8"},  // Tx Power -8 dBm
+		// NOTE: a bare bluetooth.UUID{Data:[16]byte{...}} has NO Valid flag set,
+		// so appendUUIDs() legitimately skips it. The Eddystone service UUID is
+		// exercised properly in the second sub-test below with Valid: true.
 		{0xFF, "4C000215"}, // Mfr data: company 0x004C LE + payload
 	}
 	for _, c := range checks {

@@ -352,27 +352,32 @@ func utf8ish(d []byte) bool {
 	return len(d) > 0
 }
 
-// edSchemePrefix maps the Eddystone URL scheme byte to its prefix.
+// Eddystone-URL expansion tables — Google Eddystone spec, Frame Type 0x10.
+// Scheme codes and URL suffix codes occupy bytes 0x00-0x07; ASCII '!' is 0x21,
+// so any byte < 0x08 is a compressed code, everything else is a literal char.
 var edSchemePrefix = [4]string{"http://www.", "https://www.", "http://", "https://"}
 
-// edCodeSuffix maps Eddystone URL compression codes to strings.
 var edCodeSuffix = [8]string{".com", ".org", ".net", ".edu", ".com/", ".org/", ".net/", ".edu/"}
 
 func decodeEddystoneURLPayload(d []byte) string {
-	if len(d) < 2 {
+	// Eddystone-URL frame layout (Google Eddystone spec):
+	//   d[0]=frame type (0x10) · d[1]=tx power · d[2]=URL scheme code · d[3..]=URL body
+	if len(d) < 4 {
 		return ""
 	}
-	b := d[1:] // skip frame-type byte
+	scheme := int(d[2])
+	if scheme > 3 {
+		return "" // unknown scheme code — not a valid URL frame
+	}
 	var sb strings.Builder
-	if len(b) > 0 {
-		sb.WriteString(edSchemePrefix[b[0]&3])
-		for _, c := range b[1:] {
-			if int(c) < len(edCodeSuffix) {
-				sb.WriteString(edCodeSuffix[c])
-			} else {
-				sb.WriteByte(c)
-			}
+	sb.WriteString(edSchemePrefix[scheme])
+	for _, c := range d[3:] { // URL body
+		if c < 0x08 {
+			sb.WriteString(edCodeSuffix[c])
+		} else if c >= 0x21 && c <= 0x7E {
+			sb.WriteByte(c) // printable ASCII literal
 		}
+		// bytes outside the spec's encodable set are skipped
 	}
 	return sb.String()
 }

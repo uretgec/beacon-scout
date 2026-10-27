@@ -59,9 +59,9 @@ SmartScreen will say *"Windows protected your PC"*:
 
 Two flavours are published:
 
-- **Installer** — per-user NSIS (no admin/UAC needed). WebView2 runtime is required
+**Installer** — per-user NSIS (no admin/UAC needed). WebView2 runtime is required
   (preinstalled on Windows 11; bootstrapped on Windows 10 when online).
-- **Portable ZIP** — no install at all: extract anywhere and double-click
+**Portable ZIP** — no install at all: extract anywhere and double-click
   `beacon-scout.exe` (same SmartScreen step applies once). Uninstall = delete folder.
 
 Each release asset ships with a `.sha256` checksum you can verify with
