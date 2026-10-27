@@ -75,9 +75,12 @@ jobs:
         working-directory: frontend
         run: npm ci && npm run build
 
+      # Only check TRACKED Go files: `wails3 generate bindings` writes freshly
+      # generated (and not necessarily gofmt-clean) TS/Go output into the repo,
+      # and a blanket `gofmt -l .` would fail the gate on generated code.
       - name: gofmt check
         run: |
-          FILES=$(gofmt -l .)
+          FILES=$(git ls-files '*.go' | xargs -r gofmt -l)
           if [ -n "$FILES" ]; then echo "Unformatted files:"; echo "$FILES"; exit 1; fi
 
       - name: go vet
@@ -153,6 +156,16 @@ jobs:
       - name: Install Task
         uses: go-task/setup-task@v1
 
+      # `wails3 generate icons` shells out to Xcode's actool to build the
+      # .icns asset catalogue. macos-latest can land on an image whose default
+      # Xcode is broken/mismatched for actool — pin a known-good full Xcode
+      # and verify actool actually runs before the build steps.
+      - name: Select Xcode + verify actool
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+          xcodebuild -version
+          actool --version
+
       # Pin the CLI to the same version as go.mod (v3.0.0-beta.30).
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
@@ -214,8 +227,24 @@ jobs:
           go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
           Add-Content $env:GITHUB_PATH "$env:USERPROFILE\go\bin"
 
-      - name: Install NSIS (makensis)
-        run: choco install nsis -y --no-progress
+      # `choco install nsis` sometimes lands the binary in a shim dir that is
+      # not refreshed into PATH for later pwsh steps. Install via choco AND
+      # assert makensis resolves from an explicit path afterwards; if choco's
+      # bin isn't on PATH we prepend the standard install dir ourselves.
+      - name: Install NSIS (makensis) + verify PATH
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          $nsisBin = "C:\Program Files (x86)\NSIS\Bin"
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            if (Test-Path "$nsisBin\makensis.exe") {
+              Add-Content $env:GITHUB_PATH $nsisBin
+              $env:Path = "$nsisBin;$env:Path"
+            } else {
+              Write-Host "::error::makensis.exe not found after choco install"; exit 1
+            }
+          }
+          makensis /VERSION
 
       - name: Install Task
         uses: go-task/setup-task@v1
