@@ -6,6 +6,8 @@ It **passively listens** for Bluetooth Low Energy advertisement packets — it n
 
 🔗 Repository: <https://github.com/uretgec/beacon-scout>
 
+![Main Screen](docs/screenshots/main.jpeg)
+
 ## What it can do
 
 - **Passive scanning** — captures ADV_IND / SCAN_RSP advertisements from any nearby BLE device.
