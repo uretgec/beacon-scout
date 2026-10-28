@@ -130,8 +130,16 @@ tasks:
 
   package:dmg:
     summary: Packages the application into a styled `.dmg`
+    # NOTE: deps switched from `package` (single-arch) to `package:universal`.
+    # Chaining `package:universal` then `package:dmg` used to fail because the
+    # old dep graph re-entered the single-arch `build:native`, whose
+    # `prepare-macos-output` step had already turned bin/<app> into a DIRECTORY;
+    # `go build -o bin/<app>` then aborted with:
+    #   "build output "bin/beacon-scout" already exists and is not an object file"
+    # Universal-first also means the released .dmg contains the arm64+amd64 fat
+    # binary, so it runs on both Apple Silicon and Intel Macs.
     deps:
-      - task: package
+      - task: package:universal
     cmds:
       - task: create:dmg
 
