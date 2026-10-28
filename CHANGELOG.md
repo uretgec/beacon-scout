@@ -1,10 +1,23 @@
 # Changelog
 
+## 2026-10-29
+
+### Fixed
+
+- **CI (macOS release build):** `task darwin:package:universal && task darwin:package:dmg` failed with
+  `go build ... build output "bin/beacon-scout" already exists and is not an object file`. Root cause:
+  `package:dmg` depended on the *single-arch* `package` -> `build:native`, which re-ran
+  `wails3 tool prepare-macos-output` + `go build -o bin/beacon-scout` after that path had already been
+  prepared into a directory by the universal step. (`Taskfile.yml` deps graph, verified locally)
+  Fix: `darwin:package:dmg` now depends on `package:universal` directly — one command produces the
+  universal `.app` bundle and wraps it in the styled `.dmg`. Side benefit: released dmg is arm64+amd64
+  fat binary (runs on Apple Silicon and Intel). Workflow step simplified to `task darwin:package:dmg`.
+
 All notable changes to Beacon Scout. Short SHA = commit id in this repository (`git show <sha>`).
 
 ## Latest (2026-10-27)
 
-### Fixed
+### Fixed#2
 
 - **CI (release.yml):** gofmt gate failed on `build/ios/*.go` files. Root cause:
   the `.gitignore` rule `build/` was silently excluding ALL Wails build source
@@ -22,7 +35,7 @@ All notable changes to Beacon Scout. Short SHA = commit id in this repository (`
 
 ## Previous (2026-10-26)
 
-### Fixed#2
+### Fixed#3
 
 - **CI (release.yml):** Frontend build failed on fresh checkouts with
   `[plugin wails-typed-events] Event bindings module not found …` — Vite's

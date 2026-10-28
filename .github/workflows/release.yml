@@ -192,7 +192,11 @@ jobs:
         run: wails3 generate bindings -ts
 
       - name: Build universal app bundle + dmg (unsigned)
-        run: task darwin:package:universal && task darwin:package:dmg
+        # package:dmg now depends on package:universal internally (see
+        # build/darwin/Taskfile.yml) — one command builds the universal .app
+        # bundle and wraps it into the styled .dmg without re-running the
+        # single-arch go build over the prepared output path.
+        run: task darwin:package:dmg
 
       - name: Ad-hoc codesign (keeps Gatekeeper from killing it instantly)
         run: |
