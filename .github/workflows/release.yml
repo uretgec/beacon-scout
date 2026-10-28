@@ -99,7 +99,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # macos-15 (not macos-latest) — keeps the whole pipeline on the
+        # Xcode 16 toolchain that Wails v3 beta.30 is validated against.
+        os: [ubuntu-latest, macos-15, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -144,7 +146,11 @@ jobs:
   darwin:
     name: Build macOS (.dmg)
     needs: [lint, test]
-    runs-on: macos-latest
+    # macos-latest currently resolves to the macos-26 image (Xcode 26.x).
+    # Wails v3 beta.30 toolchain is validated against Xcode 16, so pin the
+    # runner image AND the Xcode version explicitly instead of hardcoding an
+    # app path that may not exist on the chosen image.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -157,12 +163,16 @@ jobs:
         uses: go-task/setup-task@v1
 
       # `wails3 generate icons` shells out to Xcode's actool to build the
-      # .icns asset catalogue. macos-latest can land on an image whose default
-      # Xcode is broken/mismatched for actool — pin a known-good full Xcode
-      # and verify actool actually runs before the build steps.
-      - name: Select Xcode + verify actool
+      # .icns asset catalogue. Select a known-good Xcode 16 via the community
+      # action (resolves the exact bundle path automatically), then verify
+      # actool actually runs before the build steps.
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.0'
+
+      - name: Verify actool
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
           xcodebuild -version
           actool --version
 
@@ -275,7 +285,20 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Get-ChildItem -Recurse -Include *-installer.exe | Copy-Item -Destination dist\
+          # Search only the build output dirs — a repo-wide -Recurse would also
+          # match files already copied into .\dist and fail with
+          # "Cannot overwrite the item ... with itself".
+          $installers = Get-ChildItem -Path bin -Recurse -Filter *-installer.exe -ErrorAction SilentlyContinue
+          if (-not $installers) {
+            Write-Host "::error::No *-installer.exe found under bin\ — NSIS package step changed its output path?"
+            Get-ChildItem -Recurse -Include *-installer.exe | Select-Object FullName
+            exit 1
+          }
+          foreach ($f in $installers) {
+            if ($f.DirectoryName -ne (Resolve-Path dist).Path) {
+              Copy-Item $f.FullName -Destination dist\ -Force
+            }
+          }
           Get-ChildItem dist
 
       # Portable ZIP of the standalone .exe — no installer, no SmartScreen
